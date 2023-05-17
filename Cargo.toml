@@ -1,0 +1,13 @@
+[package]
+name = "rust_basic"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+
+[dev-dependencies]
+criterion = "0.4"
+
+[profile.release]
+lto = true
+strip = true
+

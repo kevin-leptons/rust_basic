@@ -1,0 +1,38 @@
+RUST BASIC
+==========
+
+    Basic data structures and algorithms in Rust.
+
+    The project is used for practice with Rust programming language in the
+    following aspects: grammar, safe code, unsafe code, memory management,
+    and supported tools.
+
+    Data structures and algorithms are grouped and built into data types. For
+    examples: Stack, Queue, Vector, String, HashMap, HashSet, PriorityQueue,
+    Tree, RedBlackTree, DirectedGraph and more. All implementations are
+    made from scratch without dependencies, except for: 1 - `std::ptr` and
+    `std::alloc` to manage memory; 2 - `std::iter` to implement standard
+    iterators; 3 - `std::cmp` to implement comparison operators.
+
+QUICKSTART
+==========
+
+    # Install Rust compiler and tools.
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+    # Read the document for quick API references.
+    cargo doc --open
+
+    # Run unit tests.
+    cargo test
+
+MEMORY DIAGNOSTIC
+=================
+
+    # Make sure `valgrind` is available in the environment.
+
+    # Install `cargo-valgrind`.
+    cargo install cargo-valgrind@2.1.0
+
+    # Start checking.
+    cargo valgrind test
