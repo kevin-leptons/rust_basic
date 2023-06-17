@@ -1,10 +1,9 @@
-use super::{HashMap, State};
-use crate::HashKey;
+use super::{HashMap, Hashable, State};
 
 /// For iteration over pairs key-value in a hash map.
 pub struct Iter<'a, K, V>
 where
-    K: HashKey,
+    K: Hashable + Eq,
 {
     map: &'a HashMap<K, V>,
     index: usize,
@@ -12,7 +11,7 @@ where
 
 impl<'a, K, V> Iter<'a, K, V>
 where
-    K: HashKey,
+    K: Hashable + Eq,
 {
     pub(super) fn new(map: &'a HashMap<K, V>) -> Self {
         return Self { map: map, index: 0 };
@@ -21,7 +20,7 @@ where
 
 impl<'a, K, V> Iterator for Iter<'a, K, V>
 where
-    K: HashKey,
+    K: Hashable + Eq,
 {
     type Item = (&'a K, &'a V);
 
@@ -45,7 +44,7 @@ where
 /// For iteration over keys in a hash map.
 pub struct KeyIter<'a, K, V>
 where
-    K: HashKey,
+    K: Hashable + Eq,
 {
     map: &'a HashMap<K, V>,
     index: usize,
@@ -53,7 +52,7 @@ where
 
 impl<'a, K, V> KeyIter<'a, K, V>
 where
-    K: HashKey,
+    K: Hashable + Eq,
 {
     pub(super) fn new(map: &'a HashMap<K, V>) -> Self {
         return Self { map: map, index: 0 };
@@ -62,7 +61,7 @@ where
 
 impl<'a, K, V> Iterator for KeyIter<'a, K, V>
 where
-    K: HashKey,
+    K: Hashable + Eq,
 {
     type Item = &'a K;
 
@@ -86,7 +85,7 @@ where
 /// For iteration over immutable values in a hash map.
 pub struct ValueIter<'a, K, V>
 where
-    K: HashKey,
+    K: Hashable + Eq,
 {
     map: &'a HashMap<K, V>,
     index: usize,
@@ -94,7 +93,7 @@ where
 
 impl<'a, K, V> ValueIter<'a, K, V>
 where
-    K: HashKey,
+    K: Hashable + Eq,
 {
     pub(super) fn new(map: &'a HashMap<K, V>) -> Self {
         return Self { map: map, index: 0 };
@@ -103,7 +102,7 @@ where
 
 impl<'a, K, V> Iterator for ValueIter<'a, K, V>
 where
-    K: HashKey,
+    K: Hashable + Eq,
 {
     type Item = &'a V;
 
@@ -127,7 +126,7 @@ where
 /// For iteration over mutable values in a hash map.
 pub struct ValueIterMut<'a, K, V>
 where
-    K: HashKey,
+    K: Hashable + Eq,
 {
     map: &'a mut HashMap<K, V>,
     index: usize,
@@ -135,7 +134,7 @@ where
 
 impl<'a, K, V> ValueIterMut<'a, K, V>
 where
-    K: HashKey,
+    K: Hashable + Eq,
 {
     pub(super) fn new(map: &'a mut HashMap<K, V>) -> Self {
         return Self { map: map, index: 0 };
@@ -144,7 +143,7 @@ where
 
 impl<'a, K, V> Iterator for ValueIterMut<'a, K, V>
 where
-    K: HashKey,
+    K: Hashable + Eq,
 {
     type Item = &'a mut V;
 

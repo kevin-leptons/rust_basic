@@ -20,17 +20,28 @@ pub use iter::FindIter;
 
 /// `entry` A container for ASCII string.
 ///
+/// # Overview
+///
+/// ```txt
+///  +---+---+---+
+///  | a | b | c |
+///  +---+---+---+
+///    0   1   2
+///    ^   ^   ^
+///    |   |   |
+///    +------------- index
+/// ```
+///
 /// # Example
 ///
 /// ```
 /// use rust_basic::String;
 ///
-/// let s = String::from("ab ac aa dd aa");
+/// let mut s = String::from("aa bb aa");
 /// let p = String::from("aa");
-/// let mut i = s.find(&p);
-/// assert_eq!(i.next(), Some(6));
-/// assert_eq!(i.next(), Some(12));
-/// assert_eq!(i.next(), None);
+/// let r = String::from("zzz");
+/// s.replace(&p, &r);
+/// assert_eq!(s, String::from("zzz bb zzz"));
 #[derive(Debug)]
 pub struct String {
     head: NonNull<u8>,
@@ -39,8 +50,11 @@ pub struct String {
 }
 
 impl<'a> String {
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Create a new empty instance.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn new() -> Self {
         return Self {
             head: NonNull::dangling(),
@@ -49,14 +63,40 @@ impl<'a> String {
         };
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Quantity of characters.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn size(&self) -> usize {
         return self.size;
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// ASCII character at `index`.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
+    pub fn get(&self, index: usize) -> char {
+        assert!(index < self.size, "expect: `index` is less than size");
+        return unsafe { *self.head.as_ptr().add(index) as char };
+    }
+
+    /// ASCII code at `index`.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
+    pub fn get_code(&self, index: usize) -> u8 {
+        assert!(index < self.size, "expect: `index` is less than size");
+        return unsafe { *self.head.as_ptr().add(index) };
+    }
+
+    /// Borrow as a `str`. todo:
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn as_str(&self) -> &str {
         unsafe {
             let p =
@@ -65,8 +105,11 @@ impl<'a> String {
         };
     }
 
-    /// * Time complexity: O(m).
-    /// * Space complexity: O(m).
+    /// Get a copy of slice from the string.
+    ///
+    /// Time complexity: O(m).
+    ///
+    /// Space complexity: O(m).
     pub fn slice(&self, from: usize, to: usize) -> String {
         assert!(from < to, "expect: `from` is less than `to`");
         assert!(to <= self.size, "expect: `to` is not greater than size");
@@ -83,8 +126,21 @@ impl<'a> String {
         return s;
     }
 
-    /// * Time complexity: O(n + m).
-    /// * Space complexity: O(n + m).
+    /// Put a copy of content from an other string at `to`. Characters at `[to,
+    /// end]` will be shift to `i + value.size()` where `i` is old index.
+    ///
+    /// Time complexity: O(n + m).
+    ///
+    /// Space complexity: O(n + m).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_basic::String;
+    ///
+    /// let mut s = String::from("aa bb cc");
+    /// s.insert(3, &String::from("zzz "));
+    /// assert_eq!(s, String::from("aa zzz bb cc"));
     pub fn insert(&mut self, to: usize, value: &String) {
         assert!(to <= self.size, "expect: `to` is not greater than size");
         let new_size = self.size + value.size;
@@ -110,10 +166,13 @@ impl<'a> String {
         self.capacity = new_size;
     }
 
-    /// * Replace all matched pattern with `value`.
-    /// * Time complexity: O(n + m + k) where `m, k` is size of `pattern, value`
-    ///   respectively.
-    /// * Space complexity: O(n).
+    /// Search for matched sub strings, remove them from matched indexes and put
+    /// a copy of an other string to.
+    ///
+    /// Time complexity: O(n + m + k) where `m, k` is size of `pattern, value`
+    /// respectively.
+    ///
+    /// Space complexity: O(n).
     pub fn replace(&mut self, pattern: &String, value: &String) {
         assert!(pattern.size > 0, "expect: `pattern` is not empty");
         if pattern.size == value.size {
@@ -125,16 +184,20 @@ impl<'a> String {
         }
     }
 
-    /// * Equivalent as `insert(size, value)`.
-    /// * Time complexity: O(n + m).
-    /// * Space complexity: O(n + m).
+    /// Equivalent tot [Self::insert(size, value)](Self::insert).
+    ///
+    /// Time complexity: O(n + m).
+    ///
+    /// Space complexity: O(n + m).
     pub fn append(&mut self, value: &String) {
         self.insert(self.size(), value);
     }
 
-    /// * Remove whitespaces from head and tail of the string.
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Remove whitespaces from head and tail of the string.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn trim(&mut self) {
         let p = self.head.as_ptr();
         let mut i = 0;
@@ -167,8 +230,11 @@ impl<'a> String {
         }
     }
 
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Convert all alphabets to uppercase.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn upper(&mut self) {
         let p = self.head.as_ptr();
         unsafe {
@@ -182,8 +248,11 @@ impl<'a> String {
         }
     }
 
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Convert all alphabets to lowercase.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn lower(&mut self) {
         let p = self.head.as_ptr();
         unsafe {
@@ -197,34 +266,23 @@ impl<'a> String {
         }
     }
 
-    /// * Retrieve ASCII code at `index`.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
-    pub fn code_at(&self, index: usize) -> u8 {
-        assert!(index < self.size, "expect: `index` is less than size");
-        return unsafe { *self.head.as_ptr().add(index) };
-    }
-
-    /// * Retrieve ASCII character at `index`.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
-    pub fn char_at(&self, index: usize) -> char {
-        assert!(index < self.size, "expect: `index` is less than size");
-        return unsafe { *self.head.as_ptr().add(index) as char };
-    }
-
-    /// * Find index that matches `pattern`.
-    /// * Algorithm: Knuth–Morris–Pratt.
-    /// * Time complexity: O(n + m).
-    /// * Space complexity: O(n + m).
+    /// For iteration over matched sub strings.
+    ///
+    /// Algorithm: Knuth–Morris–Pratt.
+    ///
+    /// Time complexity: O(n + m).
+    ///
+    /// Space complexity: O(n + m).
     pub fn find(&'a self, pattern: &'a String) -> FindIter {
         assert!(pattern.size > 0, "expect: `pattern` is not empty");
         return FindIter::new(self, pattern);
     }
 
-    /// Release memory and set size of the string to zero.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Release memory and give back to allocator.
+    ///
+    ///  Time complexity: O(1).
+    ///
+    ///  Space complexity: O(1).
     pub fn clear(&mut self) {
         if self.capacity == 0 {
             return;
@@ -416,9 +474,9 @@ impl<'a> String {
 }
 
 impl From<&str> for String {
-    /// * Create a new instance from primitive string.
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn from(str: &str) -> Self {
         assert!(str.is_ascii(), "expect: ASCII string");
         let mut s = String::new();
@@ -432,6 +490,9 @@ impl From<&str> for String {
 }
 
 impl Clone for String {
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn clone(&self) -> Self {
         let mut s = String::new();
         s.recapacity_by_size(self.size);
@@ -448,11 +509,14 @@ impl Clone for String {
 }
 
 impl Ord for String {
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn cmp(&self, other: &Self) -> Ordering {
         let n = min(self.size, other.size);
         for i in 0..n {
-            let c0 = self.code_at(i);
-            let c1 = other.code_at(i);
+            let c0 = self.get_code(i);
+            let c1 = other.get_code(i);
             if c0 > c1 {
                 return Ordering::Greater;
             } else if c0 < c1 {
@@ -464,6 +528,9 @@ impl Ord for String {
 }
 
 impl PartialOrd for String {
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         return Some(self.cmp(other));
     }
@@ -472,12 +539,16 @@ impl PartialOrd for String {
 impl Eq for String {}
 
 impl PartialEq for String {
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn eq(&self, other: &Self) -> bool {
         return self.cmp(other) == Ordering::Equal;
     }
 }
 
 impl Drop for String {
+    /// Equivalent to [Self::clear].
     fn drop(&mut self) {
         self.clear();
     }

@@ -1,7 +1,7 @@
 use super::PriorityQueue;
 
-/// An iterator over items in a priority queue. It does not guarantee items come
-/// in ordered priority.
+/// An iterator over items in a priority queue. It does not guarantee items will
+/// arrive in ordered priority.
 pub struct Iter<'a, T>
 where
     T: Ord,

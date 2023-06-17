@@ -1,4 +1,4 @@
-use rust_basic::queue::Queue;
+use rust_basic::queue::{self, Queue};
 
 #[test]
 fn push_then_pop() {
@@ -69,6 +69,31 @@ fn get_panic() {
 }
 
 #[test]
+fn index() {
+    let q = sample();
+    assert!(q.size() > 0);
+    for i in 0..q.size() {
+        assert_eq!(q[i], format!("item: {}", i));
+    }
+}
+
+#[test]
+#[should_panic(expected = "expect: `index` is less than size")]
+fn index_panic_empty() {
+    let q = Queue::<String>::new();
+    assert!(q.size() == 0);
+    let _ = q[q.size()].len();
+}
+
+#[test]
+#[should_panic(expected = "expect: `index` is less than size")]
+fn index_panic_non_empty() {
+    let q = sample();
+    assert!(q.size() > 0);
+    let _ = q[q.size()].len();
+}
+
+#[test]
 fn iter() {
     let a = [
         "item: 0".to_string(),
@@ -123,4 +148,12 @@ fn clear() {
     ]);
     q.clear();
     assert_eq!(q.size(), 0);
+}
+
+fn sample() -> Queue<String> {
+    let mut q = Queue::new();
+    for i in 0..10000 {
+        q.push(format!("item: {}", i));
+    }
+    return q;
 }

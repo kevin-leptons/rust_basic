@@ -29,7 +29,7 @@ fn set_panic_non_empty() {
 
 #[test]
 fn get_mut() {
-    let mut l = build_sample_small();
+    let mut l = sample_small();
     for k in 0..l.size() {
         l.get_mut(k)
             .replace_range(.., format!("new item: {}", k).as_str());
@@ -55,8 +55,41 @@ fn get_panic_non_empty() {
 }
 
 #[test]
+fn index_front() {
+    let l = sample_tiny();
+    assert_eq!(l[0], "item: 0".to_string());
+}
+
+#[test]
+fn index_middle() {
+    let l = sample_tiny();
+    assert_eq!(l[49], "item: 49".to_string());
+}
+
+#[test]
+fn index_back() {
+    let l = sample_tiny();
+    assert_eq!(l[99], "item: 99".to_string());
+}
+
+#[test]
+#[should_panic(expected = "expect: `index` is less than size")]
+fn index_panic_empty() {
+    let l = LinkedList::<String>::new();
+    let _ = l[0].len();
+}
+
+#[test]
+#[should_panic(expected = "expect: `index` is less than size")]
+fn index_panic_non_empty() {
+    let l = sample_tiny();
+    assert!(l.size() > 0);
+    let _ = l[l.size()].len();
+}
+
+#[test]
 fn push_front() {
-    let mut l = build_sample();
+    let mut l = sample();
     let n = l.size();
     let v = "new value".to_string();
     l.push_front(v.clone());
@@ -67,7 +100,7 @@ fn push_front() {
 
 #[test]
 fn push_back() {
-    let mut l = build_sample();
+    let mut l = sample();
     let n = l.size();
     let v = "new value".to_string();
     l.push_back(v.clone());
@@ -109,7 +142,7 @@ fn from_iter() {
 
 #[test]
 fn iter() {
-    let l = build_sample();
+    let l = sample();
     let mut k = 0;
     for i in l.iter() {
         assert_eq!(i, &format!("item: {}", k));
@@ -120,7 +153,7 @@ fn iter() {
 
 #[test]
 fn iter_mut() {
-    let mut l = build_sample();
+    let mut l = sample();
     let mut k = 0;
     for i in l.iter_mut() {
         i.replace_range(.., format!("new item: {}", k).as_str());
@@ -135,13 +168,13 @@ fn iter_mut() {
 
 #[test]
 fn front() {
-    let l = build_sample();
+    let l = sample();
     assert_eq!(l.front(), &"item: 0");
 }
 
 #[test]
 fn back() {
-    let l = build_sample();
+    let l = sample();
     assert_eq!(l.back(), &format!("item: {}", l.size() - 1));
 }
 
@@ -186,7 +219,7 @@ fn remove_panic_non_empty() {
 
 #[test]
 fn pop_front() {
-    let mut l = build_sample();
+    let mut l = sample();
     let n = l.size();
     assert_eq!(l.pop_front(), "item: 0".to_string());
     assert_eq!(l.get(n - 2), &format!("item: {}", n - 1));
@@ -195,7 +228,7 @@ fn pop_front() {
 
 #[test]
 fn pop_back() {
-    let mut l = build_sample();
+    let mut l = sample();
     let n = l.size();
     assert_eq!(l.pop_back(), format!("item: {}", n - 1));
     assert_eq!(l.size(), n - 1);
@@ -243,7 +276,7 @@ fn clear() {
     assert_eq!(l.size(), 0);
 }
 
-fn build_sample() -> LinkedList<String> {
+fn sample() -> LinkedList<String> {
     let mut l = LinkedList::<String>::new();
     for i in 0..100000 {
         l.set(l.size(), format!("item: {}", i));
@@ -251,9 +284,17 @@ fn build_sample() -> LinkedList<String> {
     return l;
 }
 
-fn build_sample_small() -> LinkedList<String> {
+fn sample_small() -> LinkedList<String> {
     let mut l = LinkedList::<String>::new();
     for i in 0..10000 {
+        l.set(l.size(), format!("item: {}", i));
+    }
+    return l;
+}
+
+fn sample_tiny() -> LinkedList<String> {
+    let mut l = LinkedList::<String>::new();
+    for i in 0..100 {
         l.set(l.size(), format!("item: {}", i));
     }
     return l;

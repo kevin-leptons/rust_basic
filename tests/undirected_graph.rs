@@ -1,5 +1,6 @@
 use rust_basic::hash_set::HashSet;
 use rust_basic::undirected_graph::UndirectedGraph;
+use rust_basic::Vector;
 
 #[test]
 fn new_vertex() {
@@ -173,18 +174,16 @@ fn new_edges_iter() {
 
 #[test]
 fn travel() {
-    let mut g = build_sample();
-    let mut visisted = HashSet::<u64>::new();
-    for v in g.travel(06) {
-        visisted.add(v.identity());
-    }
-    let expected = HashSet::from([04, 05, 06, 07, 08]);
-    assert_eq!(visisted, expected);
+    let mut g = sample();
+    let mut visisted: Vector<u64> =
+        g.travel(06).map(|v| v.identity()).collect();
+    visisted.sort();
+    assert_eq!(visisted, Vector::from([04, 05, 06, 07, 08]));
 }
 
 #[test]
 fn kruskal() {
-    let g = build_sample();
+    let g = sample();
     let r = g.kruskal();
     let actual_vertexes =
         HashSet::<u64>::from_iter(r.vertexes().map(|v| v.identity()));
@@ -219,6 +218,7 @@ fn kruskal() {
 
 /// Build a graph like this:
 ///
+/// ```txt
 ///           3
 /// [ 00 ]---------[ 01 ]
 ///   |              |
@@ -243,8 +243,8 @@ fn kruskal() {
 ///  |  +-----------+  +-------------+  |
 ///  |  |                            |  |
 /// [ 07 ]--------------------------[ 08 ]
-///                  8
-fn build_sample() -> UndirectedGraph {
+/// ```
+fn sample() -> UndirectedGraph {
     let mut g = UndirectedGraph::new();
     g.new_vertexes([00, 01, 02, 03, 04, 05, 06, 07, 08]);
     g.new_edges([

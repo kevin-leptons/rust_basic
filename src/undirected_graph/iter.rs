@@ -1,4 +1,4 @@
-use crate::{hash_map, HashMap, Queue, UndirectedGraph};
+use crate::{hash_map, HashMap, HashSet, Queue, UndirectedGraph};
 
 use super::{Edge, Vertex};
 
@@ -85,16 +85,15 @@ impl<'a> Iterator for TravelIter<'a> {
 pub(super) struct TravelMutIter<'a> {
     graph: &'a UndirectedGraph,
     queue: Queue<*mut Vertex>,
+    visited: HashSet<u64>,
 }
 
 impl<'a> TravelMutIter<'a> {
     pub(super) fn new(from: *mut Vertex, graph: &'a UndirectedGraph) -> Self {
         unsafe {
-            for v in graph.vertexes.values() {
-                (**v).visited = false;
-            }
             return Self {
                 queue: Queue::from([from]),
+                visited: HashSet::from([(*from).identity]),
                 graph: graph,
             };
         }
@@ -110,16 +109,17 @@ impl<'a> Iterator for TravelMutIter<'a> {
                 return None;
             }
             let v = self.queue.pop();
-            (*v).visited = true;
             for e in self.graph.edges.values() {
                 if (*(**e).vertex1).identity == (*v).identity {
-                    if (*(**e).vertex2).visited == false {
+                    if !self.visited.has(&(*(**e).vertex2).identity) {
                         self.queue.push((**e).vertex2);
+                        self.visited.add((*(**e).vertex2).identity);
                     }
                 }
                 if (*(**e).vertex2).identity == (*v).identity {
-                    if (*(**e).vertex1).visited == false {
+                    if !self.visited.has(&(*(**e).vertex1).identity) {
                         self.queue.push((**e).vertex1);
+                        self.visited.add((*(**e).vertex1).identity);
                     }
                 }
             }

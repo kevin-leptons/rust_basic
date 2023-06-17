@@ -1,5 +1,4 @@
 use rust_basic::{binary_search_tree::BinarySearchTree, HashSet};
-use std::fmt::format;
 
 #[test]
 fn set() {
@@ -10,11 +9,30 @@ fn set() {
         ("key: 2".to_string(), "value: 2".to_string()),
     ];
     for (k, v) in a.clone() {
-        t.set(k, v);
+        assert_eq!(t.set(k, v), None);
     }
     assert_eq!(t.size(), a.len());
     for (k, _) in a.as_ref() {
         assert_eq!(t.has(k), true);
+    }
+}
+
+#[test]
+fn set_existing() {
+    let a = [
+        ("key: 0".to_string(), "value: 0".to_string()),
+        ("key: 1".to_string(), "value: 1".to_string()),
+        ("key: 2".to_string(), "value: 2".to_string()),
+    ];
+    let mut t = BinarySearchTree::from(a.clone());
+    for i in 0..a.len() {
+        let old_value =
+            t.set(a[i].0.clone(), format!("new value: {}", i)).unwrap();
+        assert_eq!(old_value, format!("value: {}", i));
+    }
+    for i in 0..a.len() {
+        let v = t.get(&a[i].0.clone());
+        assert_eq!(v, &format!("new value: {}", i));
     }
 }
 
@@ -30,8 +48,8 @@ fn get_mut() {
         t.set(k, v);
     }
     let (k, _) = &a[1];
-    t.get_mut(k).unwrap().replace_range(0..5, "new value");
-    assert_eq!(t.get(k).unwrap(), &"new value: 1".to_string());
+    t.get_mut(k).replace_range(0..5, "new value");
+    assert_eq!(t.get(k), &"new value: 1".to_string());
 }
 
 #[test]
@@ -53,7 +71,7 @@ fn from_array() {
     let t = BinarySearchTree::from(a.clone());
     assert_eq!(t.size(), a.len());
     for (k, v) in a {
-        assert_eq!(t.get(&k), Some(&v));
+        assert_eq!(t.get(&k), &v);
     }
 }
 
@@ -67,7 +85,7 @@ fn from_iter() {
     let t = BinarySearchTree::from_iter(a.clone());
     assert_eq!(t.size(), a.len());
     for (k, v) in a {
-        assert_eq!(t.get(&k), Some(&v));
+        assert_eq!(t.get(&k), &v);
     }
 }
 

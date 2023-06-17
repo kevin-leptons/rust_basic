@@ -8,38 +8,64 @@
 //! more about how to explore APIs and access to [Entry APIs
 //! List](crate#structs).
 
-use crate::hash::HashKey;
-use crate::hash_map::{HashMap, KeyIter};
+mod iter;
 
-/// `entry` A container for unique values.
+use crate::hash::Hashable;
+use crate::hash_map::HashMap;
+pub use iter::Iter;
+
+/// `entry` A container for unique items.
+///
+/// # Overview
+///
+/// ```txt
+/// +---+
+/// | 1 |<--- item
+/// |---|
+/// | 2 |
+/// |---|
+/// | 3 |
+/// +---+
+/// ```
 ///
 /// # Example
 ///
 /// ```
 /// use rust_basic::HashSet;
 ///
-/// let mut s = HashSet::<u32>::from([1, 7, 3, 5]);
+/// let mut s = HashSet::from([1, 7, 3, 5]);
 /// s.add(9);
 /// assert_eq!(s.has(&9), true);
 /// assert_eq!(s.remove(&3), true);
 /// assert_eq!(s.has(&3), false);
-/// assert_eq!(s.size(), 4);
 #[derive(Debug)]
-pub struct HashSet<T: HashKey> {
+pub struct HashSet<T>
+where
+    T: Hashable + Eq,
+{
     map: HashMap<T, ()>,
 }
 
-impl<T: HashKey> HashSet<T> {
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+impl<T> HashSet<T>
+where
+    T: Hashable + Eq,
+{
+    /// Create a new empty instance.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn new() -> Self {
         return Self {
             map: HashMap::new(),
         };
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Quantity of items.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn size(&self) -> usize {
         return self.map.size();
     }
@@ -53,14 +79,20 @@ impl<T: HashKey> HashSet<T> {
         };
     }
 
-    /// * Time complexity: O(1) or O(n).
-    /// * Space complexity: O(1).
+    /// If the item does exist then return `true`.
+    ///
+    /// Time complexity: O(1) or O(n).
+    ///
+    /// Space complexity: O(1).
     pub fn has(&self, value: &T) -> bool {
         return self.map.has(value);
     }
 
-    /// * Time complexity: O(1) or O(n).
-    /// * Space complexity: O(1).
+    /// Remove the item and return it.
+    ///
+    /// Time complexity: O(1) or O(n).
+    ///
+    /// Space complexity: O(1).
     pub fn remove(&mut self, value: &T) -> bool {
         return match self.map.remove(&value) {
             None => false,
@@ -68,15 +100,20 @@ impl<T: HashKey> HashSet<T> {
         };
     }
 
-    /// * For iteration over items in this container.
-    pub fn iter(&self) -> KeyIter<T, ()> {
-        return self.map.keys();
+    /// For iteration over items.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
+    pub fn iter(&self) -> Iter<T> {
+        return Iter::new(self.map.keys());
     }
 
-    /// * Remove all items from the container, drop them and give back memory to
-    ///   allocator.
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Remove all items container, drop them and give back memory to allocator.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn clear(&mut self) {
         self.map.clear();
     }
@@ -84,10 +121,11 @@ impl<T: HashKey> HashSet<T> {
 
 impl<T, const N: usize> From<[T; N]> for HashSet<T>
 where
-    T: HashKey,
+    T: Hashable + Eq,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn from(value: [T; N]) -> Self {
         let mut s = HashSet::new();
         for v in value {
@@ -99,10 +137,11 @@ where
 
 impl<T> FromIterator<T> for HashSet<T>
 where
-    T: HashKey,
+    T: Hashable + Eq,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut s = HashSet::new();
         for v in iter {
@@ -114,10 +153,11 @@ where
 
 impl<T> Clone for HashSet<T>
 where
-    T: HashKey + Clone,
+    T: Hashable + Clone + Eq,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn clone(&self) -> Self {
         let mut s = HashSet::<T>::new();
         for k in self.iter() {
@@ -127,14 +167,15 @@ where
     }
 }
 
-impl<T> Eq for HashSet<T> where T: HashKey {}
+impl<T> Eq for HashSet<T> where T: Hashable + Eq {}
 
 impl<T> PartialEq for HashSet<T>
 where
-    T: HashKey,
+    T: Hashable + Eq,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn eq(&self, other: &Self) -> bool {
         return self.map == other.map;
     }

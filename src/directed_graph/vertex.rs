@@ -9,7 +9,6 @@ pub struct Vertex {
     pub(super) cost: u64,
     pub(super) edges: HashMap<u64, Edge>,
     pub(super) connected_from: HashSet<u64>,
-    pub(super) topological: HashSet<u64>,
 }
 
 /// Input data for creating a vertex.
@@ -33,7 +32,6 @@ impl Vertex {
             cost,
             edges: HashMap::new(),
             connected_from: HashSet::new(),
-            topological: HashSet::new(),
         };
     }
 
@@ -50,9 +48,5 @@ impl Vertex {
     /// For iteration over edges that begin from the vertex.
     pub fn edges(&self) -> EdgeIter {
         return EdgeIter::new(&self.edges);
-    }
-
-    pub(super) fn reset_topological(&mut self) {
-        self.topological = self.connected_from.clone();
     }
 }

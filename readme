@@ -7,9 +7,9 @@ RUST BASIC
     following aspects: grammar, safe code, unsafe code, memory management,
     and supported tools.
 
-    Data structures and algorithms are grouped and built into data types. For
-    examples: Stack, Queue, Vector, String, HashMap, HashSet, PriorityQueue,
-    Tree, RedBlackTree, DirectedGraph and more. All implementations are
+    Data structures and algorithms are grouped and built into containers. For
+    examples: Stack, Queue, Vector, String, HashMap, HashSet, Tree,
+    PriorityQueue, RedBlackTree, DirectedGraph and more. All implementations are
     made from scratch without dependencies, except for: 1 - `std::ptr` and
     `std::alloc` to manage memory; 2 - `std::iter` to implement standard
     iterators; 3 - `std::cmp` to implement comparison operators.
@@ -29,10 +29,11 @@ QUICKSTART
 MEMORY DIAGNOSTIC
 =================
 
-    # Make sure `valgrind` is available in the environment.
-
     # Install `cargo-valgrind`.
     cargo install cargo-valgrind@2.1.0
+
+    # Make sure `valgrind` is available in the environment because
+    # `cargo-valgrind` depend on it.
 
     # Start checking.
     cargo valgrind test

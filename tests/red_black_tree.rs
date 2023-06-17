@@ -1,6 +1,24 @@
 use rust_basic::{red_black_tree::RedBlackTree, Vector};
 
 #[test]
+fn set_existing() {
+    let a = [
+        ("key: 0".to_string(), "value: 0".to_string()),
+        ("key: 1".to_string(), "value: 1".to_string()),
+        ("key: 2".to_string(), "value: 2".to_string()),
+    ];
+    let mut t = RedBlackTree::from(a.clone());
+    for i in 0..t.size() {
+        let old = t.set(a[i].0.clone(), format!("new value: {}", i)).unwrap();
+        assert_eq!(old, a[i].1);
+        assert_eq!(t.size(), a.len());
+    }
+    for i in 0..t.size() {
+        assert_eq!(t.get(&a[i].0), &format!("new value: {}", i));
+    }
+}
+
+#[test]
 fn from_array() {
     let t = RedBlackTree::from([
         ("key: 0".to_string(), "value: 0".to_string()),
@@ -9,9 +27,7 @@ fn from_array() {
     ]);
     assert_eq!(t.size(), 3);
     for i in 0..t.size() {
-        let r = t.get(&format!("key: {}", i));
-        assert!(r.is_some());
-        let v = r.unwrap();
+        let v = t.get(&format!("key: {}", i));
         assert_eq!(v, &format!("value: {}", i));
     }
 }
@@ -25,9 +41,7 @@ fn from_iter() {
     ]);
     assert_eq!(t.size(), 3);
     for i in 0..t.size() {
-        let r = t.get(&format!("key: {}", i));
-        assert!(r.is_some());
-        let v = r.unwrap();
+        let v = t.get(&format!("key: {}", i));
         assert_eq!(v, &format!("value: {}", i));
     }
 }
@@ -49,10 +63,10 @@ fn get_mut() {
         ("key: 2".to_string(), "value: 2".to_string()),
     ]);
     let k = "key: 1".to_string();
-    let v = t.get_mut(&k).unwrap();
+    let v = t.get_mut(&k);
     let new_content = "new value: 1";
     v.replace_range(.., new_content);
-    assert_eq!(t.get(&k).unwrap(), new_content);
+    assert_eq!(t.get(&k), new_content);
 }
 
 #[test]

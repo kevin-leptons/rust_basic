@@ -8,6 +8,7 @@
 //! more about how to explore APIs and access to [Entry APIs
 //! List](crate#structs).
 
+mod cell;
 mod iter;
 mod solver;
 
@@ -15,20 +16,40 @@ use crate::grid::Grid;
 use crate::hash_set::HashSet;
 use crate::sudoku::iter::{BlockIter, ColumnIter};
 use crate::vector::Vector;
+use cell::Cell;
 use iter::RowIter;
 use solver::solve_backtrack;
 
-const GRID_SIZE: usize = 9;
-
-#[derive(Clone, Default)]
-struct Cell {
-    value: u8,
-    locked: bool,
-    fixed: bool,
-    candidates: Vector<u8>,
-}
-
 /// `entry` A container for the game Sudoku and the solver as well.
+///
+/// # Overview
+///
+/// Value zero is a placeholder for solving.A Sudoku is solved if and only if
+/// all rows, columns and blocks have digits 1-9 and a digit is not duplicated.
+///
+/// ```txt
+/// +-------------------------------------- y-axis
+/// |      -------------------------------- x-axis
+/// |      | | |      | | |      | | |
+/// |      0 1 2      3 4 5      6 7 8
+/// |   +-------+  +-------+  +-------+
+/// |-0  | 0 5 3 |  | 0 7 0 |  | 0 0 0 |
+/// |-1  | 6 0 0 |  | 1 9 5 |  | 0 0 0 |
+/// |-2  | 0 9 8 |  | 0 0 0 |  | 0 6 0 |
+/// |   +-------+  +-------+  +-------+
+/// |
+/// |   +-------+  +-------+  +-------+
+/// |-3  | 8 0 0 |  | 0 6 0 |  | 0 0 3 |
+/// |-4  | 4 0 0 |  | 8 0 3 |  | 0 0 1 |
+/// |-5  | 7 0 0 |  | 0 2 0 |  | 0 0 6 |
+/// |   +-------+  +-------+  +-------+
+/// |
+/// |   +-------+  +-------+  +-------+
+/// |-6  | 0 6 0 |  | 0 0 0 |  | 2 8 0 |
+/// |-7  | 0 0 0 |  | 4 1 9 |  | 0 0 5 |
+/// |-8  | 0 0 0 |  | 0 8 0 |  | 0 7 9 |
+///     +-------+  +-------+  +-------+
+/// ```
 ///
 /// # Example
 ///
@@ -57,7 +78,7 @@ struct Cell {
 ///     [2, 8, 7, 4, 1, 9, 6, 3, 5],
 ///     [3, 4, 5, 2, 8, 6, 1, 7, 9],
 /// ];
-/// assert_eq!(s.solve_once(), true);
+/// assert_eq!(s.solve(), true);
 /// for x in 0..9 {
 ///     for y in 0..9 {
 ///         assert_eq!(s.get(x, y), expected[y][x]);
@@ -68,27 +89,38 @@ pub struct Sudoku {
 }
 
 impl Sudoku {
-    /// * Create a new instance, zero value for each cell.
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Quantity of values in the grid, both x-axis and y-axis.
+    pub const GRID_SIZE: usize = 9;
+
+    /// Quantity of values in a block, both x-axis and y-axis.
+    pub const BLOCK_SIZE: usize = 3;
+
+    /// Create a new instance, all cells are set to zero.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn new() -> Self {
         let mut g = Grid::<Cell>::new();
-        g.resize(GRID_SIZE, GRID_SIZE);
+        g.resize(Self::GRID_SIZE, Self::GRID_SIZE);
         return Self { grid: g };
     }
 
-    /// * Retrieve a value at cell `(x, y)`.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Borrow a value at `(x, y)`.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn get(&self, x: usize, y: usize) -> u8 {
         let s = self.grid.get(x, y);
         return s.value;
     }
 
-    /// * Put a value at cell `(x, y)`. Value `0` make a cell become a
-    ///  placeholder for solving later.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Put a new value at `(x, y)`.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn set(&mut self, x: usize, y: usize, value: u8) {
         assert!(value <= 9, "expect: value is in [0, 9]");
         let s = self.grid.get_mut(x, y);
@@ -97,17 +129,21 @@ impl Sudoku {
         s.fixed = value != 0;
     }
 
-    /// * Find a solution for the current state.
-    /// * Time complexity: O(9^n).
-    /// * Space complexity: O(n).
-    pub fn solve_once(&mut self) -> bool {
+    /// Find a solution for the current values.
+    ///
+    /// Time complexity: O(9^n).
+    ///
+    /// Space complexity: O(n).
+    pub fn solve(&mut self) -> bool {
         self.initialize_candidates();
         return solve_backtrack(self);
     }
 
-    /// * Check the current state is valid or not.
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Check the current state is valid or not.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn validate(&self) -> bool {
         return self.validate_numbers()
             && self.validate_rows()
@@ -115,11 +151,13 @@ impl Sudoku {
             && self.validate_blocks();
     }
 
-    /// * Set placeholder cells to value `0`.
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Set all placeholder values to value zero.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn reset(&mut self) {
-        for c in self.grid.cells_mut() {
+        for c in self.grid.iter_mut() {
             if c.fixed {
                 continue;
             }
@@ -146,7 +184,7 @@ impl Sudoku {
     }
 
     fn validate_rows(&self) -> bool {
-        for y in 0..GRID_SIZE {
+        for y in 0..Self::GRID_SIZE {
             if !self.valid_row(y) {
                 return false;
             }
@@ -155,8 +193,8 @@ impl Sudoku {
     }
 
     fn valid_row(&self, y: usize) -> bool {
-        let mut row = [0; GRID_SIZE];
-        for x in 0..GRID_SIZE {
+        let mut row = [0; Self::GRID_SIZE];
+        for x in 0..Self::GRID_SIZE {
             row[x] = self.grid.get(x, y).value;
         }
         return Self::duplicate(&row) == false;
@@ -164,7 +202,7 @@ impl Sudoku {
 
     fn valid_row_maybe(&self, y: usize) -> bool {
         let mut s = HashSet::<u8>::new();
-        for x in 0..GRID_SIZE {
+        for x in 0..Self::GRID_SIZE {
             let v = self.grid.get(x, y).value;
             if v == 0 {
                 continue;
@@ -178,7 +216,7 @@ impl Sudoku {
     }
 
     fn validate_columns(&self) -> bool {
-        for x in 0..GRID_SIZE {
+        for x in 0..Self::GRID_SIZE {
             if !self.valid_column(x) {
                 return false;
             }
@@ -187,8 +225,8 @@ impl Sudoku {
     }
 
     fn valid_column(&self, x: usize) -> bool {
-        let mut column = [0; GRID_SIZE];
-        for y in 0..GRID_SIZE {
+        let mut column = [0; Self::GRID_SIZE];
+        for y in 0..Self::GRID_SIZE {
             column[y] = self.grid.get(x, y).value;
         }
         return Self::duplicate(&column) == false;
@@ -196,7 +234,7 @@ impl Sudoku {
 
     fn valid_column_maybe(&self, x: usize) -> bool {
         let mut s = HashSet::<u8>::new();
-        for y in 0..GRID_SIZE {
+        for y in 0..Self::GRID_SIZE {
             let v = self.grid.get(x, y).value;
             if v == 0 {
                 continue;
@@ -210,14 +248,14 @@ impl Sudoku {
     }
 
     fn validate_blocks(&self) -> bool {
-        for by in 0..3 {
-            for bx in 0..3 {
-                let mut block = [0; GRID_SIZE];
-                let gx = 3 * bx;
-                let gy = 3 * by;
+        for by in 0..Self::BLOCK_SIZE {
+            for bx in 0..Self::BLOCK_SIZE {
+                let mut block = [0; Self::GRID_SIZE];
+                let gx = Self::BLOCK_SIZE * bx;
+                let gy = Self::BLOCK_SIZE * by;
                 let mut k = 0;
-                for x in gx..(gx + 3) {
-                    for y in gy..(gy + 3) {
+                for x in gx..(gx + Self::BLOCK_SIZE) {
+                    for y in gy..(gy + Self::BLOCK_SIZE) {
                         block[k] = self.grid.get(x, y).value;
                         k += 1;
                     }
@@ -231,11 +269,11 @@ impl Sudoku {
     }
 
     fn valid_block_maybe(&self, x: usize, y: usize) -> bool {
-        let xb = x - x % 3;
-        let yb = y - y % 3;
+        let xb = x - x % Self::BLOCK_SIZE;
+        let yb = y - y % Self::BLOCK_SIZE;
         let mut s = HashSet::<u8>::new();
-        for x in xb..(xb + 3) {
-            for y in yb..(yb + 3) {
+        for x in xb..(xb + Self::BLOCK_SIZE) {
+            for y in yb..(yb + Self::BLOCK_SIZE) {
                 let v = self.grid.get(x, y).value;
                 if v == 0 {
                     continue;
@@ -249,7 +287,7 @@ impl Sudoku {
         return true;
     }
 
-    fn duplicate(list: &[u8; 9]) -> bool {
+    fn duplicate(list: &[u8; Self::GRID_SIZE]) -> bool {
         let mut s = HashSet::<u8>::new();
         for v in list {
             if s.has(v) {
@@ -261,8 +299,8 @@ impl Sudoku {
     }
 
     fn initialize_candidates(&mut self) {
-        for y in 0..GRID_SIZE {
-            for x in 0..GRID_SIZE {
+        for y in 0..Self::GRID_SIZE {
+            for x in 0..Self::GRID_SIZE {
                 Self::initialize_candidate(self, x, y);
             }
         }
@@ -313,15 +351,16 @@ impl Sudoku {
     }
 }
 
-impl From<[[u8; 9]; 9]> for Sudoku {
-    /// * Create a new instance from 2-dimensional array. Value `0` is
-    ///   placeholder for solving.
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
-    fn from(grid: [[u8; 9]; 9]) -> Self {
+impl From<[[u8; Self::GRID_SIZE]; Self::GRID_SIZE]> for Sudoku {
+    /// Create a new instance of the container, put cloned values and return.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
+    fn from(grid: [[u8; Self::GRID_SIZE]; Self::GRID_SIZE]) -> Self {
         let mut s = Sudoku::new();
-        for x in 0..GRID_SIZE {
-            for y in 0..GRID_SIZE {
+        for x in 0..Self::GRID_SIZE {
+            for y in 0..Self::GRID_SIZE {
                 s.set(x, y, grid[y][x]);
             }
         }

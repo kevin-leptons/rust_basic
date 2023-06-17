@@ -17,10 +17,11 @@ mod vertex;
 use crate::hash_map::HashMap;
 use crate::priority_queue::PriorityQueue;
 use crate::vector::Vector;
+use crate::HashSet;
 use crate::Queue;
 use cost::Cost;
 pub use edge::{Edge, RawEdge};
-pub use iter::{EdgeIter, VertexIter};
+pub use iter::{EdgeIter, TravelIter, VertexIter};
 pub use path::Path;
 pub use vertex::RawVertex;
 pub use vertex::Vertex;
@@ -30,23 +31,30 @@ pub use vertex::Vertex;
 /// A directed graph includes `V` - set of vertexes and `E` - set of edges.
 /// `|V|` is quantity of vertexes and `|E|` is quantity of edges.
 ///
+/// # Overview
+///
+/// ```txt
+///
+///                           +--------- vertex's identity
+///                           |  +------ vertex's cost
+///                           |  |
+///         1           1     v  v
+/// [0, 4]----->[1, 1]------>[2, 5]<--- vertex
+///   |          |            |
+///   |          |            |<-------- edge
+///   4          1            |
+///   |          |            |
+///   |          |            9 <------- edge's cost
+///   v          |            |
+/// [3, 2]<-------+           |
+///   |                       |
+///   |               2       v
+///   +--------------------->[4, 7]
+/// ```
+///
 /// # Example
 ///
 /// ```
-/// /// Build and find shortest path in a graph like this:
-/// ///
-/// ///         1           1
-/// /// [0, 4]----->[1, 1]------>[2, 5]
-/// ///   |           |            |
-/// ///   |           |            |
-/// ///   4           1            |
-/// ///   |           |            |
-/// ///   |           |            9
-/// ///   v           |            |
-/// /// [3, 2]<-------+            |
-/// ///   |                        |
-/// ///   |               2        v
-/// ///   +--------------------->[4, 7]
 /// use rust_basic::{DirectedGraph, Vector};
 ///
 /// let mut g = DirectedGraph::new();
@@ -74,36 +82,51 @@ pub struct DirectedGraph {
 }
 
 impl DirectedGraph {
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Create a new empty instance.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn new() -> Self {
         return Self {
             vertexes: HashMap::new(),
         };
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// For iteration over vertexes.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn vertexes(&self) -> VertexIter {
         return VertexIter::new(&self.vertexes);
     }
 
-    /// * Time complexity: O(1) or O(|V|).
-    /// * Space complexity: O(|V|).
+    /// Create a new vertex.
+    ///
+    /// Time complexity: O(1) or O(|V|).
+    ///
+    /// Space complexity: O(|V|).
     pub fn new_vertex(&mut self, identity: u64, cost: u64) {
         assert!(!self.vertexes.has(&identity), "expect: not existed vertex");
         let v = Vertex::new(identity, cost);
         self.vertexes.set(identity, v);
     }
 
-    /// * Time complexity: O(1) or O(|V|).
-    /// * Space complexity: O(|V|).
+    /// Create new vertexes from an array.
+    ///
+    /// Time complexity: O(1) or O(|V|).
+    ///
+    /// Space complexity: O(|V|).
     pub fn new_vertexes<const N: usize>(&mut self, vertexes: [RawVertex; N]) {
         self.new_vertexes_iter(vertexes.into_iter());
     }
 
-    /// * Time complexity: O(1) or O(|V|).
-    /// * Space complexity: O(|V|).
+    /// Create new vertexes from an iterator.
+    ///
+    /// Time complexity: O(1) or O(|V|).
+    ///
+    /// Space complexity: O(|V|).
     pub fn new_vertexes_iter(
         &mut self,
         vertexes: impl Iterator<Item = RawVertex>,
@@ -113,40 +136,61 @@ impl DirectedGraph {
         }
     }
 
-    /// * Time complexity: O(1) or O(|E|).
-    /// * Space complexity: O(|E|).
+    /// Create a new edge.
+    ///
+    /// Time complexity: O(1) or O(|E|).
+    ///
+    /// Space complexity: O(|E|).
     pub fn new_edge(&mut self, begin: u64, end: u64, cost: u64) {
+        let edge = Edge::new(begin, end, cost);
         let v_begin = match self.vertexes.get_mut(&begin) {
             None => panic!("expect: `begin` is existed"),
             Some(v) => v,
         };
+        v_begin.edges.set(end, edge);
         let v_end = match self.vertexes.get_mut(&end) {
             None => panic!("expect: `end` is existed"),
             Some(v) => v,
         };
-        let edge = Edge::new(begin, end, cost);
-        v_begin.edges.set(end, edge);
         v_end.connected_from.add(begin);
     }
 
-    /// * Time complexity: O(1) or O(|E|).
-    /// * Space complexity: O(|E|).
+    /// Create new edges from an array.
+    ///
+    /// Time complexity: O(1) or O(|E|).
+    ///
+    /// Space complexity: O(|E|).
     pub fn new_edges<const N: usize>(&mut self, edges: [RawEdge; N]) {
         self.new_edges_iter(edges.into_iter());
     }
 
-    /// * Time complexity: O(1) or O(|E|).
-    /// * Space complexity: O(|E|).
+    /// Create new edges from an iterator.
+    ///
+    /// Time complexity: O(1) or O(|E|).
+    ///
+    /// Space complexity: O(|E|).
     pub fn new_edges_iter(&mut self, edges: impl Iterator<Item = RawEdge>) {
         for (begin, end, cost) in edges {
             self.new_edge(begin, end, cost);
         }
     }
 
-    /// * Find a lowest cost path.
-    /// * Algorithm: Dijkstra.
-    /// * Time complexity: O(|V| + |E|).
-    /// * Space complexity: O(|V| + |E|).
+    /// For iteration over vertexes which are connected with the vertex `from`.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
+    pub fn travel(&self, from: u64) -> TravelIter {
+        return TravelIter::new(from, self);
+    }
+
+    /// Find a lowest cost path from a vertex to another.
+    ///
+    /// Algorithm: Dijkstra.
+    ///
+    /// Time complexity: O(|V| + |E|).
+    ///
+    /// Space complexity: O(|V| + |E|).
     pub fn dijkstra(&self, from: u64, to: u64) -> Option<Path> {
         let source = match self.vertexes.get(&from) {
             None => panic!("expect: a existed node"),
@@ -165,10 +209,10 @@ impl DirectedGraph {
         }
         lowest.push(Cost::new(source, source.cost));
         loop {
-            let cost = match lowest.pop() {
-                None => return None,
-                Some(v) => v,
-            };
+            if lowest.size() == 0 {
+                return None;
+            }
+            let cost = lowest.pop();
             if cost.vertex.identity == to {
                 return self.build_path(from, to, &prevs);
             }
@@ -185,33 +229,46 @@ impl DirectedGraph {
         }
     }
 
-    /// * Find a topological sort.
-    /// * Algorithm: Kahn.
-    /// * The result is not uniqueness.
-    /// * Time complexity: O(|V| + |E|). * Space complexity: O(|V| + |E|).
-    pub fn kahn(&mut self) -> Option<Vector<u64>> {
+    /// Find a topological sort.
+    ///
+    /// Algorithm: Kahn.
+    ///
+    /// Time complexity: O(|V| + |E|).
+    ///
+    /// Space complexity: O(|V| + |E|).
+    pub fn kahn(&self) -> Option<Vector<u64>> {
         let mut path = Vector::<u64>::new();
         let mut pool = self.find_independent_vetexes();
-        for v in self.vertexes.values_mut() {
-            v.reset_topological();
+        let mut topological = HashMap::<u64, HashSet<u64>>::new();
+        for v in self.vertexes.values() {
+            let c = v.connected_from.clone();
+            topological.set(v.identity, c);
         }
         loop {
             if pool.size() == 0 {
                 break;
             }
             let v_id = pool.pop();
-            let v = self.vertexes.get(&v_id).unwrap();
+            let edges: Vector<Edge> = self
+                .vertexes
+                .get(&v_id)
+                .unwrap()
+                .edges
+                .values()
+                .map(|e| e.clone())
+                .collect();
             path.push_back(v_id);
-            for edge in v.edges.values() {
-                let end = self.vertexes.get_mut(&edge.to).unwrap();
-                end.topological.remove(&v.identity);
-                if end.topological.size() == 0 {
+            for edge in edges.iter() {
+                let end = self.vertexes.get(&edge.to).unwrap();
+                let t = topological.get_mut(&end.identity).unwrap();
+                t.remove(&v_id);
+                if t.size() == 0 {
                     pool.push(end.identity);
                 }
             }
         }
-        for v in self.vertexes.values() {
-            if v.topological.size() > 0 {
+        for t in topological.values() {
+            if t.size() > 0 {
                 return None;
             }
         }

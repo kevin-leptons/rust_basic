@@ -8,34 +8,20 @@
 //! more about how to explore APIs and access to [Entry APIs
 //! List](crate#structs).
 
+mod etc;
 mod iter;
 mod node;
 
+use etc::Direction;
+pub use etc::RawPair;
 use iter::TravelNodePostIter;
 pub use iter::{Iter, KeyIter, ValueIter};
 use node::{Color, Node};
 
-#[derive(PartialEq, Clone)]
-enum Direction {
-    Left,
-    Right,
-}
-
-/// Input for creating a pair key-value.
-///
-/// # Example
-///
-/// ```
-/// use rust_basic::red_black_tree::RawPair;
-///
-/// let raw: RawPair<&str, &str> = ("key", "value");
-/// let (key, value) = raw;
-pub type RawPair<K, V> = (K, V);
-
 /// `entry` A container for pairs key-value.
 ///
-/// The container guarantees time complexity of O(log(n)) for almost all
-/// operations.
+/// The APIs is similar as [create::HashMap] but it guarantees time complexity
+/// of O(log(n)) for almost all operations.
 ///
 /// # Example
 ///
@@ -47,7 +33,7 @@ pub type RawPair<K, V> = (K, V);
 ///     (3, 5),
 ///     (9, 2),
 /// ]);
-/// assert_eq!(t.get(&3), Some(&5));
+/// assert_eq!(t.get(&3), &5);
 /// assert_eq!(t.min(), &1);
 /// assert_eq!(t.max(), &9);
 pub struct RedBlackTree<K, V>
@@ -62,8 +48,11 @@ impl<K, V> RedBlackTree<K, V>
 where
     K: Ord,
 {
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Create a new empty instance.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn new() -> Self {
         return Self {
             root: None,
@@ -71,82 +60,103 @@ where
         };
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Quantity of pairs.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn size(&self) -> usize {
         return self.size;
     }
 
-    /// * Put a value into the container.
-    /// * Time complexity: O(log(n)).
-    /// * Space complexity: O(n).
-    pub fn set(&mut self, key: K, value: V) {
+    /// Put a new pair key-value.
+    ///
+    /// Time complexity: O(log(n)).
+    ///
+    /// Space complexity: O(n).
+    pub fn set(&mut self, key: K, value: V) -> Option<V> {
         unsafe {
-            let c = self.insert_binary_tree(key, value);
-            if (*c).parrent.is_none() {
-                (*c).color = Color::Black;
-                return;
+            let (old, new) = self.insert_binary_tree(key, value);
+            if (*new).parrent.is_none() {
+                (*new).color = Color::Black;
+            } else {
+                self.fix_insertion(new);
             }
-            self.fix_insertion(c);
+            return old;
         }
     }
 
-    /// * Time complexity: O(log(n)).
-    /// * Space complexity: O(n).
-    pub fn get(&self, key: &K) -> Option<&V> {
+    /// Borrow an immutable value .
+    ///
+    /// Time complexity: O(log(n)).
+    ///
+    /// Space complexity: O(n).
+    pub fn get(&self, key: &K) -> &V {
         unsafe {
-            let node = match lookup(&self.root, key) {
-                None => return None,
-                Some(v) => v,
+            match lookup(&self.root, key) {
+                None => panic!("expect: an existing key"),
+                Some(v) => return &(*v).value,
             };
-            return Some(&(*node).value);
         }
     }
 
-    /// * Time complexity: O(log(n)).
-    /// * Space complexity: O(n).
-    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+    /// Borrow a mutable value.
+    ///
+    /// Time complexity: O(log(n)).
+    ///
+    /// Space complexity: O(n).
+    pub fn get_mut(&mut self, key: &K) -> &mut V {
         unsafe {
-            let node = match lookup(&self.root, key) {
-                None => return None,
-                Some(v) => v,
+            match lookup(&self.root, key) {
+                None => panic!("expect: an existing key"),
+                Some(v) => return &mut (*v).value,
             };
-            return Some(&mut (*node).value);
         }
     }
 
-    /// * Time complexity: O(log(n)).
-    /// * Space complexity: O(n).
+    /// If the key does exist then return `true`.
+    ///
+    /// Time complexity: O(log(n)).
+    ///
+    /// Space complexity: O(n).
     pub fn has(&self, key: &K) -> bool {
         unsafe {
             return lookup(&self.root, key).is_some();
         }
     }
 
-    /// * For iteration over pairs in the container.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// For iteration over pairs.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn iter(&self) -> Iter<K, V> {
         return Iter::new(self.root);
     }
 
-    /// * For iteration over pairs in the container.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// For iteration over pairs.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn keys(&self) -> KeyIter<K, V> {
         return KeyIter::new(self.root);
     }
 
-    /// * For iteration over pairs in the container.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// For iteration over pairs.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn values(&self) -> ValueIter<K, V> {
         return ValueIter::new(self.root);
     }
 
-    /// * Retrieve minimum key in the container.
-    /// * Time complexity: O(log(n)).
-    /// * Space complexity: O(n).
+    /// Borrow an immutable value that pair with minimum key.
+    ///
+    /// Time complexity: O(log(n)).
+    ///
+    /// Space complexity: O(n).
     pub fn min(&self) -> &K {
         unsafe {
             let mut c = match self.root {
@@ -162,9 +172,11 @@ where
         }
     }
 
-    /// * Retrieve maximum key in the container.
-    /// * Time complexity: O(log(n)).
-    /// * Space complexity: O(n).
+    /// Borrow an immutable value that pair with maximum key.
+    ///
+    /// Time complexity: O(log(n)).
+    ///
+    /// Space complexity: O(n).
     pub fn max(&self) -> &K {
         unsafe {
             let mut c = match self.root {
@@ -180,9 +192,11 @@ where
         }
     }
 
-    /// * Remove a pair from the container and return it's value.
-    /// * Time complexity: O(log(n)).
-    /// * Space complexity: O(n).
+    /// Remove a pair and return it's value.
+    ///
+    /// Time complexity: O(log(n)).
+    ///
+    /// Space complexity: O(n).
     pub fn remove(&mut self, key: &K) -> Option<V> {
         unsafe {
             let z = match lookup(&self.root, key) {
@@ -236,10 +250,11 @@ where
         }
     }
 
-    /// * Remove all pairs from the container, drop them and give back memory to
-    ///   allocator.
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(1).
+    /// Remove all pairs, drop them and give back memory to allocator.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(1).
     pub fn clear(&mut self) {
         if self.root.is_none() {
             return;
@@ -251,6 +266,75 @@ where
         }
         self.root = None;
         self.size = 0;
+    }
+
+    /// Return old value.
+    unsafe fn insert_binary_tree_recursive(
+        &mut self,
+        current: *mut Node<K, V>,
+        new_node: *mut Node<K, V>,
+    ) -> Option<V>
+    where
+        K: Ord,
+    {
+        let mut c = current;
+        if (*new_node).key < (*c).key {
+            match (*c).left {
+                None => {
+                    (*c).left = Some(new_node);
+                    (*new_node).parrent = Some(current);
+                    return None;
+                }
+                Some(v) => {
+                    return self.insert_binary_tree_recursive(v, new_node);
+                }
+            };
+        } else if (*new_node).key > (*c).key {
+            match (*c).right {
+                None => {
+                    (*c).right = Some(new_node);
+                    (*new_node).parrent = Some(current);
+                    return None;
+                }
+                Some(v) => {
+                    return self.insert_binary_tree_recursive(v, new_node);
+                }
+            };
+        } else {
+            self.replace(new_node, c);
+            let b = Box::from_raw(c);
+            return Some(b.value);
+        }
+    }
+
+    unsafe fn replace(
+        &mut self,
+        source: *mut Node<K, V>,
+        target: *mut Node<K, V>,
+    ) {
+        match (*target).parrent {
+            None => self.root = Some(source),
+            Some(v) => {
+                if (*v).left == Some(target) {
+                    (*v).left = Some(source);
+                } else if (*v).right == Some(target) {
+                    (*v).right = Some(source);
+                } else {
+                    panic!("unexpected: bad link");
+                }
+            }
+        }
+        (*source).parrent = (*target).parrent;
+        (*source).left = (*target).left;
+        match (*target).left {
+            None => {}
+            Some(v) => (*v).parrent = Some(source),
+        };
+        (*source).right = (*target).right;
+        match (*target).right {
+            None => {}
+            Some(v) => (*v).parrent = Some(source),
+        };
     }
 
     unsafe fn fix_insertion(&mut self, mut c: *mut Node<K, V>) {
@@ -310,8 +394,9 @@ where
         set_color(&self.root, Color::Black);
     }
 
-    /// * Link `target`'s parrent to `source` instead of `target`.
-    /// * Keep children unchange for both `source` and `target`.
+    /// Link `target`'s parrent to `source` instead of `target`.
+    ///
+    /// Keep children unchange for both `source` and `target`.
     unsafe fn transplant(
         &mut self,
         source: &Option<*mut Node<K, V>>,
@@ -335,9 +420,11 @@ where
         }
     }
 
-    /// * Transfer all links of `target` to `source`, including parent, left and right.
-    /// * Keep outer links unchange for `target`.
-    /// * Keep links to `source` unchange from nodes as before relocation.
+    /// Transfer all links of `target` to `source`, including parent, left and right.
+    ///
+    /// Keep outer links unchange for `target`.
+    ///
+    /// Keep links to `source` unchange from nodes as before relocation.
     unsafe fn relocate(
         &mut self,
         source: *mut Node<K, V>,
@@ -448,11 +535,12 @@ where
         }
     }
 
+    /// Return (old, new)
     unsafe fn insert_binary_tree(
         &mut self,
         key: K,
         value: V,
-    ) -> *mut Node<K, V> {
+    ) -> (Option<V>, *mut Node<K, V>) {
         let b = Box::new(Node {
             key: key,
             value: value,
@@ -464,11 +552,16 @@ where
         let node = Box::leak(b);
         if self.root.is_none() {
             self.root = Some(node);
+            self.size += 1;
+            return (None, node);
         } else {
-            insert_binary_tree(self.root.clone().unwrap(), node);
+            let old = self
+                .insert_binary_tree_recursive(self.root.clone().unwrap(), node);
+            if old.is_none() {
+                self.size += 1;
+            }
+            return (old, node);
         }
-        self.size += 1;
-        return node;
     }
 
     unsafe fn rotate_left(&mut self, x: *mut Node<K, V>) {
@@ -528,8 +621,9 @@ impl<K, V, const N: usize> From<[RawPair<K, V>; N]> for RedBlackTree<K, V>
 where
     K: Ord,
 {
-    /// * Time complexity: O(n.log(n)).
-    /// * Space complexity: O(1).
+    /// Time complexity: O(n.log(n)).
+    ///
+    /// Space complexity: O(1).
     fn from(pairs: [RawPair<K, V>; N]) -> Self {
         return Self::from_iter(pairs.into_iter());
     }
@@ -539,8 +633,9 @@ impl<K, V> FromIterator<RawPair<K, V>> for RedBlackTree<K, V>
 where
     K: Ord,
 {
-    /// * Time complexity: O(n.log(n)).
-    /// * Space complexity: O(1).
+    /// Time complexity: O(n.log(n)).
+    ///
+    /// Space complexity: O(1).
     fn from_iter<I: IntoIterator<Item = RawPair<K, V>>>(iter: I) -> Self {
         let mut t = RedBlackTree::new();
         for (key, value) in iter {
@@ -554,8 +649,9 @@ impl<K, V> Drop for RedBlackTree<K, V>
 where
     K: Ord,
 {
-    /// * Time complexity: O(n)).
-    /// * Space complexity: O(1).
+    /// Time complexity: O(n)).
+    ///
+    /// Space complexity: O(1).
     fn drop(&mut self) {
         self.clear();
     }
@@ -573,42 +669,6 @@ unsafe fn get_direction<K, V>(node: *mut Node<K, V>) -> Direction {
         return Direction::Right;
     } else {
         panic!("expect: parrent points to node");
-    }
-}
-
-unsafe fn insert_binary_tree<K, V>(
-    current: *mut Node<K, V>,
-    new_node: *mut Node<K, V>,
-) where
-    K: Ord,
-{
-    let mut c = current;
-    if (*new_node).key < (*c).key {
-        match (*c).left {
-            None => {
-                (*c).left = Some(new_node);
-                (*new_node).parrent = Some(current);
-                return;
-            }
-            Some(v) => {
-                insert_binary_tree(v, new_node);
-                return;
-            }
-        };
-    } else if (*new_node).key > (*c).key {
-        match (*c).right {
-            None => {
-                (*c).right = Some(new_node);
-                (*new_node).parrent = Some(current);
-                return;
-            }
-            Some(v) => {
-                insert_binary_tree(v, new_node);
-                return;
-            }
-        };
-    } else {
-        panic!("duplicated value");
     }
 }
 

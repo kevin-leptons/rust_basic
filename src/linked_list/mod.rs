@@ -8,31 +8,42 @@
 //! more about how to explore APIs and access to [Entry APIs
 //! List](crate#structs).
 
+mod etc;
 mod iter;
-mod node;
 
+use etc::{Cursor, Node};
 pub use iter::{Iter, IterMut};
-use node::Node;
-use std::cmp::Ordering;
-
-struct Cursor<T> {
-    prev: Option<*mut Node<T>>,
-    current: Option<*mut Node<T>>,
-}
+use std::{cmp::Ordering, ops::Index};
 
 /// `entry` A container for items, indexed by unsigned integers.
+///
+/// # Overview
+///
+/// ```txt
+///   +----------------------- front
+///   |                 +----- back
+///   |                 |
+///   v                 v
+/// +---+    +---+    +---+
+/// |   |--->|   |--->|   |
+/// | 1 |    | 2 |    | 3 |
+/// |   |<---|   |<---|   |
+/// +---+    +---+  ^ +---+
+///   0        1        2
+///   ^        ^        ^
+///   |        |        |
+///   +----------------------- index
+/// ```
 ///
 /// # Example
 ///
 /// ```
 /// use rust_basic::LinkedList;
 ///
-/// let mut l = LinkedList::<u32>::from([3, 5, 7]);
-/// l.push_front(1);
-/// l.push_back(9);
-/// assert_eq!(l.remove(1), 3);
-/// assert_eq!(l.get(1), &5);
-/// assert_eq!(l.size(), 4);
+/// let mut l = LinkedList::from([1, 2, 3]);
+/// assert_eq!(l.front(), &1);
+/// assert_eq!(l.back(), &3);
+/// assert_eq!(l[1], 2);
 #[derive(Debug)]
 pub struct LinkedList<T> {
     head: Option<*mut Node<T>>,
@@ -41,8 +52,11 @@ pub struct LinkedList<T> {
 }
 
 impl<T> LinkedList<T> {
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Create a new empty instance.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn new() -> Self {
         return Self {
             head: None,
@@ -51,15 +65,20 @@ impl<T> LinkedList<T> {
         };
     }
 
-    /// Quantity of values in the container.
+    /// Quantity of items.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn size(&self) -> usize {
         return self.size;
     }
 
-    /// * Put an item into the container. The item can be access by `index`
-    ///   later.
-    /// * Time complexity: O(1) or O(n).
-    /// * Space complexity: O(n).
+    /// Put a new item at `index`.
+    ///
+    /// Time complexity: O(1) or O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn set(&mut self, index: usize, item: T) {
         let c = self.lookup(index);
         let b = Box::new(Node {
@@ -79,52 +98,92 @@ impl<T> LinkedList<T> {
         self.size += 1;
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(n).
-    pub fn push_front(&mut self, value: T) {
-        self.set(0, value);
-    }
-
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(n).
-    pub fn push_back(&mut self, item: T) {
-        self.set(self.size, item);
-    }
-
-    /// * Time complexity: O(1) or O(n).
-    /// * Space complexity: O(n).
+    /// Borrow immutable item at `index`.
+    ///
+    /// Time complexity: O(1) or O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn get(&self, index: usize) -> &T {
         assert!(index < self.size, "expect: `index` is less than size");
         let c = self.lookup(index);
         return unsafe { &(*c.current.unwrap()).item };
     }
 
-    /// * Time complexity: O(1) or O(n).
-    /// * Space complexity: O(n).
+    /// Borrow mutable item at `index`.
+    ///
+    /// Time complexity: O(1) or O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn get_mut(&mut self, index: usize) -> &mut T {
         assert!(index < self.size, "expect: `index` is less than size");
         let c = self.lookup(index);
         return unsafe { &mut (*c.current.unwrap()).item };
     }
 
-    /// * Retrieve a value at index `0`.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(n).
+    /// Borrow immutable item at index `0`.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(n).
     pub fn front(&self) -> &T {
         assert!(self.size > 0, "expect: non empty list");
         return self.get(0);
     }
 
-    /// * Retrieve a value at index `size - 1`.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(n).
+    /// Borrow immutable item at index `size - 1`.
+    ///
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(n).
     pub fn back(&self) -> &T {
         assert!(self.size > 0, "expect: non empty list");
         return self.get(self.size - 1);
     }
 
-    /// * Time complexity: O(1) or O(n).
-    /// * Space complexity: O(n).
+    /// Put a new item at index `0`.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(n).
+    pub fn push_front(&mut self, value: T) {
+        self.set(0, value);
+    }
+
+    /// Put a new item at index `size`.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(n).
+    pub fn push_back(&mut self, item: T) {
+        self.set(self.size, item);
+    }
+
+    /// Remove an item at index `0`
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(n).
+    pub fn pop_front(&mut self) -> T {
+        assert!(self.size > 0, "expect: non empty list");
+        return self.remove(0);
+    }
+
+    /// Remove an item at index `size - 1`.
+    ///
+    /// Time complexity: O(1) or O(n).
+    ///
+    /// Space complexity: O(n).
+    pub fn pop_back(&mut self) -> T {
+        assert!(self.size > 0, "expect: non empty list");
+        return self.remove(self.size - 1);
+    }
+
+    /// Remove an item at `index`.
+    ///
+    /// Time complexity: O(1) or O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn remove(&mut self, index: usize) -> T {
         assert!(index < self.size, "expect: `index` is less than size");
         let c = self.lookup(index);
@@ -143,35 +202,29 @@ impl<T> LinkedList<T> {
         }
     }
 
-    /// * Remove a value from the container at index `0`.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(n).
-    pub fn pop_front(&mut self) -> T {
-        assert!(self.size > 0, "expect: non empty list");
-        return self.remove(0);
-    }
-
-    /// * Time complexity: O(1) or O(n).
-    /// * Space complexity: O(n).
-    pub fn pop_back(&mut self) -> T {
-        assert!(self.size > 0, "expect: non empty list");
-        return self.remove(self.size - 1);
-    }
-
-    /// * For iteration over immutable items in the container.
+    /// For iteration over immutable items.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn iter(&self) -> Iter<T> {
         return Iter::new(self.head.clone());
     }
 
-    /// * For iteration over mutable items in the container.
+    /// For iteration over mutable items.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn iter_mut(&mut self) -> IterMut<T> {
         return IterMut::new(self.head.clone());
     }
 
-    /// * Remove all items from the container, drop them and give memory back to
-    ///   allocator.
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Remove all items, drop them and give memory back to allocator.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn clear(&mut self) {
         let mut current = self.head;
         loop {
@@ -239,8 +292,9 @@ impl<T, const N: usize> From<[T; N]> for LinkedList<T>
 where
     T: Clone,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn from(value: [T; N]) -> Self {
         return Self::from_iter(value.into_iter());
     }
@@ -250,8 +304,9 @@ impl<T> FromIterator<T> for LinkedList<T>
 where
     T: Clone,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut l = Self::new();
         for v in iter {
@@ -261,12 +316,24 @@ where
     }
 }
 
+impl<T> Index<usize> for LinkedList<T> {
+    type Output = T;
+
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
+    fn index(&self, index: usize) -> &Self::Output {
+        return self.get(index);
+    }
+}
+
 impl<T> Ord for LinkedList<T>
 where
     T: Ord,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn cmp(&self, other: &Self) -> Ordering {
         let mut n_self = self.head.clone();
         let mut n_other = other.head.clone();
@@ -294,8 +361,9 @@ impl<T> PartialOrd for LinkedList<T>
 where
     T: Ord,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         return Some(self.cmp(other));
     }
@@ -307,14 +375,16 @@ impl<T> PartialEq for LinkedList<T>
 where
     T: Ord,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn eq(&self, other: &Self) -> bool {
         return self.cmp(other) == Ordering::Equal;
     }
 }
 
 impl<T> Drop for LinkedList<T> {
+    /// Equivalent [Self::clear].
     fn drop(&mut self) {
         self.clear();
     }

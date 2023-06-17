@@ -14,27 +14,41 @@ mod sort;
 pub use iter::{Iter, IterMut};
 use sort::{sort_merge, sort_quick};
 use std::alloc::{self, handle_alloc_error, Layout};
+use std::cmp::{min, Ordering};
 use std::ops::Index;
 use std::ptr::{self, NonNull};
 
 /// `entry` A container for items that is indexed by unsigned integer.
 ///
-/// Reading or removing from index which is `index >= size` causes panic.
-/// Writing to index which is `index > size` causes panic. All sorting
-/// algorithms are incremental.
+/// # Overview
+///
+/// ```txt
+///
+///   +------------- front
+///   |       +----- back
+///   |       |
+///   v       v
+/// +---+---+---+
+/// | 1 | 2 | 3 |
+/// +---+---+---+
+///   0   1   2
+///   ^   ^   ^
+///   |   |   |
+///   +------------- index
+/// ```
 ///
 /// # Example
 ///
 /// ```
 /// use rust_basic::Vector;
 ///
-/// let mut v = Vector::from([2, 1, 7, 3]);
-/// v.push_back(5);
-/// assert_eq!(v.get(0), &2);
-/// assert_eq!(v[2], 7);
-/// assert_eq!(v.remove(1), 1);
-/// v.sort();
-/// assert_eq!(v, Vector::from([2, 3, 5, 7]));
+/// let mut v = Vector::from([1, 2]);
+/// v.push_front(3);
+/// v.push_back(4);
+/// assert_eq!(v[0], 3);
+/// assert_eq!(v[1], 1);
+/// assert_eq!(v[2], 2);
+/// assert_eq!(v[3], 4);
 #[derive(Debug)]
 pub struct Vector<T> {
     slots: NonNull<T>,
@@ -43,8 +57,11 @@ pub struct Vector<T> {
 }
 
 impl<'a, T: 'a> Vector<T> {
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Create a new empty instance.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn new() -> Self {
         return Self {
             slots: NonNull::dangling(),
@@ -53,17 +70,22 @@ impl<'a, T: 'a> Vector<T> {
         };
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Quantity of items.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn size(&self) -> usize {
         return self.size;
     }
 
-    /// * Old items in `[index, end]` has new indexes `i + 1` where `i` is old
-    ///   index.
-    /// * The index `index` refers to new item `item`.
-    /// * Time complexity: O(1) or O(n).
-    /// * Space complexity: O(n).
+    /// Put a new item into the container. Old items at `[index, end]` has new
+    /// indexes `i + 1` where `i` is old index. The `index` points to new
+    /// `item`.
+    ///
+    /// Time complexity: O(1) or O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn set(&mut self, index: usize, item: T) {
         assert!(
             index <= self.size,
@@ -83,38 +105,50 @@ impl<'a, T: 'a> Vector<T> {
         self.size = self.size + 1;
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(n).
+    /// Borrow a immutable item by index.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(n).
     pub fn get(&self, index: usize) -> &T {
         assert!(index < self.size, "expect: `index` is less than size");
         return unsafe { &*self.slots.as_ptr().add(index) };
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(n).
+    /// Borrow a mutable item by index.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(n).
     pub fn get_mut(&mut self, index: usize) -> &mut T {
         assert!(index < self.size, "expect: `index` is less than size");
         return unsafe { &mut *self.slots.as_ptr().add(index) };
     }
 
-    /// * For iteration over immutable items in the vector.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// For iteration over immutable items.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn iter(&self) -> Iter<T> {
         return Iter::new(self);
     }
 
-    /// * For iteration over mutable items in the vector.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// For iteration over mutable items.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn iter_mut(&mut self) -> IterMut<T> {
         return IterMut::new(self);
     }
 
-    /// * All items in `[index, end]` has new indexes `i - 1` where `i` is old
-    ///   index.
-    /// * Time complexity: O(1) or O(n).
-    /// * Space complexity: O(n).
+    /// Remove an item from the container and return it. All items at `[index,
+    /// end]` has new indexes `i - 1` where `i` is old index.
+    ///
+    /// Time complexity: O(1) or O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn remove(&mut self, index: usize) -> T {
         assert!(index < self.size, "expect: `index` is less than size");
         let item = unsafe { ptr::read(self.slots.as_ptr().add(index)) };
@@ -132,10 +166,21 @@ impl<'a, T: 'a> Vector<T> {
         return item;
     }
 
-    /// * The index `first` refers to item at index `second` and the index
-    ///   `second` refers to item at index `first`.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(n).
+    /// Move the item at index `first` to `second` and the item at index
+    /// `second` to `first`.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(n).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_basic::Vector;
+    ///
+    /// let mut v = Vector::from([1, 2, 3, 4]);
+    /// v.swap(1, 2);
+    /// assert_eq!(v, Vector::from([1, 3, 2, 4]));
     pub fn swap(&mut self, first: usize, second: usize) {
         assert!(first < self.size, "expect: `first` is less than size");
         assert!(second < self.size, "expect: `second` is less than size");
@@ -147,28 +192,28 @@ impl<'a, T: 'a> Vector<T> {
         }
     }
 
-    /// * Equivalent of `set(size, item)`.
+    /// Equivalent to [Self::set(size, item)](Self::set).
     pub fn push_back(&mut self, item: T) {
         self.set(self.size, item);
     }
 
-    /// * Equivalent of `set(0, item)`.
+    /// Equivalent to [Self::set(0, item)](Self::set).
     pub fn push_front(&mut self, item: T) {
         self.set(0, item);
     }
 
-    /// * Equivalent of `remove(size - 1)`.
+    /// Equivalent to [Self::remove(size - 1, item)](Self::remove).
     pub fn pop_back(&mut self) -> T {
         return self.remove(self.size - 1);
     }
 
-    /// * Equivalent of `remove(0)`.
+    /// Equivalent to [Self::remove(0, item)](Self::remove).
     pub fn pop_front(&mut self) -> T {
         return self.remove(0);
     }
 
-    /// * Sorting without specifying an algorithm.
-    /// * Equivalent as [Self::sort_quick], may be change in the future.
+    /// Perform sorting without specifying an algorithm. For now, it is
+    /// equivalent to [Self::sort_quick].
     pub fn sort(&mut self)
     where
         T: Ord,
@@ -176,9 +221,15 @@ impl<'a, T: 'a> Vector<T> {
         return self.sort_quick();
     }
 
-    /// * Time complexity: O(n) or O(n^2).
-    /// * Space complexity: O(n).
-    /// * Stable: Yes.
+    /// Sort items by Insertion Sort algorithm.
+    ///
+    /// Time complexity: O(n) or O(n^2).
+    ///
+    /// Space complexity: O(n).
+    ///
+    /// Stable: Yes.
+    ///
+    /// Direction: Increment.
     pub fn sort_insertion(&mut self)
     where
         T: Ord,
@@ -193,9 +244,15 @@ impl<'a, T: 'a> Vector<T> {
         }
     }
 
-    /// * Time complexity: O(n^2).
-    /// * Space complexity: O(n).
-    /// * Stable: No.
+    /// Sort items by Selection Sort algorithm.
+    ///
+    /// Time complexity: O(n^2).
+    ///
+    /// Space complexity: O(n).
+    ///
+    /// Stable: No.
+    ///
+    /// Direction: Increment.
     pub fn sort_selection(&mut self)
     where
         T: Ord,
@@ -216,9 +273,15 @@ impl<'a, T: 'a> Vector<T> {
         }
     }
 
-    /// * Time complexity: O(n.log(n)).
-    /// * Space complexity: O(n).
-    /// * Stable: Yes.
+    /// Sort items by Merge Sort algorithm.
+    ///
+    /// Time complexity: O(n.log(n)).
+    ///
+    /// Space complexity: O(n).
+    ///
+    /// Stable: Yes.
+    ///
+    /// Direction: Increment.
     pub fn sort_merge(&mut self)
     where
         T: Ord,
@@ -226,9 +289,13 @@ impl<'a, T: 'a> Vector<T> {
         sort_merge(self);
     }
 
-    /// * Time complexity: O(n.log(n)) or O(log(n^2)).
-    /// * Space complexity: O(n).
-    /// * Stable: No.
+    /// Sort items by Quick Sort algorithm.
+    ///
+    /// Time complexity: O(n.log(n)) or O(log(n^2)).
+    ///
+    /// Space complexity: O(n).
+    ///
+    /// Stable: No.
     pub fn sort_quick(&mut self)
     where
         T: Ord,
@@ -239,10 +306,11 @@ impl<'a, T: 'a> Vector<T> {
         sort_quick(self, 0, self.size - 1);
     }
 
-    /// * Remove all items form the container, drop them and give back memory
-    ///   to allocator.
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Remove all items, drop them and give back memory to allocator.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn clear(&mut self) {
         unsafe {
             if self.size > 0 {
@@ -316,8 +384,9 @@ impl<'a, T: 'a> Vector<T> {
 }
 
 impl<T, const N: usize> From<[T; N]> for Vector<T> {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn from(value: [T; N]) -> Self {
         let mut v = Vector::<T>::new();
         for i in value {
@@ -328,8 +397,9 @@ impl<T, const N: usize> From<[T; N]> for Vector<T> {
 }
 
 impl<T> FromIterator<T> for Vector<T> {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut v = Vector::<T>::new();
         for i in iter {
@@ -342,40 +412,65 @@ impl<T> FromIterator<T> for Vector<T> {
 impl<T> Index<usize> for Vector<T> {
     type Output = T;
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Equivalent to [Self::get].
     fn index(&self, index: usize) -> &Self::Output {
         return self.get(index);
     }
 }
 
-impl<T> Eq for Vector<T> where T: Eq {}
+impl<T> Ord for Vector<T>
+where
+    T: Ord,
+{
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
+    fn cmp(&self, other: &Self) -> Ordering {
+        let n = min(self.size, other.size);
+        for i in 0..n {
+            if self[i] > other[i] {
+                return Ordering::Greater;
+            } else if self[i] < other[i] {
+                return Ordering::Less;
+            }
+        }
+        return self.size.cmp(&other.size);
+    }
+}
+
+impl<T> PartialOrd for Vector<T>
+where
+    T: Ord,
+{
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        return Some(self.cmp(other));
+    }
+}
 
 impl<T> PartialEq for Vector<T>
 where
-    T: Eq,
+    T: Ord,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn eq(&self, other: &Self) -> bool {
-        if self.size != other.size {
-            return false;
-        }
-        for i in 0..self.size {
-            if self.get(i) != other.get(i) {
-                return false;
-            }
-        }
-        return true;
+        return self.cmp(other) == Ordering::Equal;
     }
 }
+
+impl<T> Eq for Vector<T> where T: Ord {}
 
 impl<T> Clone for Vector<T>
 where
     T: Clone,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn clone(&self) -> Self {
         let mut r = Vector::<T>::new();
         for v in self.iter() {
@@ -386,14 +481,14 @@ where
 }
 
 impl<T> Default for Vector<T> {
+    /// Equivalent to [Self::new].
     fn default() -> Self {
         return Self::new();
     }
 }
 
 impl<T> Drop for Vector<T> {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Equivalent to [Self::clear];
     fn drop(&mut self) {
         self.clear();
     }

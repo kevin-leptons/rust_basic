@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use super::node::Node;
+use super::etc::Node;
 
 /// For iteration over immutable item in a linked list.
 pub struct Iter<'a, T> {

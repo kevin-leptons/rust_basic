@@ -1,11 +1,10 @@
-use crate::HashKey;
+use crate::Hashable;
 
 /// A vertex in a graph.
 #[derive(Debug)]
 pub struct Vertex {
     pub(super) identity: u64,
     pub(super) zone: u64,
-    pub(super) visited: bool,
 }
 
 impl Vertex {
@@ -14,9 +13,9 @@ impl Vertex {
         return self.identity;
     }
 }
-impl HashKey for Vertex {
-    fn hash_key(&self) -> u32 {
-        return self.identity.hash_key();
+impl Hashable for Vertex {
+    fn hash(&self) -> u64 {
+        return self.identity.hash();
     }
 }
 

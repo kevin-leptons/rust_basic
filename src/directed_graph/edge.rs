@@ -41,3 +41,12 @@ impl Edge {
         return self.cost;
     }
 }
+impl Clone for Edge {
+    fn clone(&self) -> Self {
+        return Self {
+            from: self.from,
+            to: self.to,
+            cost: self.cost,
+        };
+    }
+}

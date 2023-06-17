@@ -12,28 +12,45 @@ mod iter;
 
 use std::alloc::{self, handle_alloc_error, Layout};
 use std::cmp::min;
+use std::ops::{Index, IndexMut};
 use std::ptr::{self, NonNull};
 
-pub use self::iter::CellIterMut;
+pub use self::iter::{Iter, IterMut};
 
 /// `entry` A container for items that is indexed in 2-dimensional coordinate.
+///
+/// # Overview
+///
+/// ```txt
+/// +---------------------- y-axis
+/// |       +-------------- x-axis
+/// |       |   |   |   |
+/// |       v   v   v   v
+/// |       0   1   2   3
+/// |     +---+---+---+---+
+/// |-> 0 | 1 | 2 | 3 | 4 |
+/// |     +---+---+---+---+
+/// |-> 1 | 5 | 6 | 7 | 8 |
+/// |     +---+---+---+---+
+/// +-> 2 | 9 | 8 | 7 | 6 |
+///       +---+---+---+---+
+/// ```
 ///
 /// # Example
 ///
 /// ```
 /// use rust_basic::Grid;
 ///
-/// let mut g = Grid::<u32>::from([
-///     [0, 1, 2],
-///     [3, 4, 5],
-///     [6, 7, 8],
-///     [9, 0, 0],
+/// let mut g = Grid::from([
+///     [1, 2, 3, 4],
+///     [5, 6, 7, 8],
+///     [9, 8, 7, 6],
 /// ]);
-/// assert_eq!(g.size_x(), 3);
-/// assert_eq!(g.size_y(), 4);
-/// assert_eq!(g.get(1, 0), &1);
-/// g.set(1, 0, 100);
-/// assert_eq!(g.get(1, 0), &100);
+/// assert_eq!(g.size_x(), 4);
+/// assert_eq!(g.size_y(), 3);
+/// assert_eq!(g[(3, 0)], 4);
+/// g.set(3, 0, 40);
+/// assert_eq!(g[(3, 0)], 40);
 #[derive(Debug)]
 pub struct Grid<T> {
     cells: NonNull<T>,
@@ -42,8 +59,11 @@ pub struct Grid<T> {
 }
 
 impl<T> Grid<T> {
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Create a new empty container.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn new() -> Self {
         return Self {
             cells: NonNull::dangling(),
@@ -52,21 +72,29 @@ impl<T> Grid<T> {
         };
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Quantity of items on x-axis.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn size_x(&self) -> usize {
         return self.size_x;
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Quantity of items on y-axis.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn size_y(&self) -> usize {
         return self.size_y;
     }
 
-    /// * Put a new item at coordinate `(x, y)`. Old item will be drop.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(n).
+    /// Put a new item at `(x, y)`. The old item will be drop.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(n).
     pub fn set(&mut self, x: usize, y: usize, value: T) {
         let index = self.get_index(x, y);
         unsafe {
@@ -76,31 +104,53 @@ impl<T> Grid<T> {
         }
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(n).
+    /// Borrow an immutable item at `(x, y)`.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(n).
     pub fn get(&self, x: usize, y: usize) -> &T {
         let index = self.get_index(x, y);
         return unsafe { &*self.cells.as_ptr().add(index) };
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(n).
+    /// Borrow an mutable item at `(x, y)`.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(n).
     pub fn get_mut(&mut self, x: usize, y: usize) -> &mut T {
         let index = self.get_index(x, y);
         return unsafe { &mut *self.cells.as_ptr().add(index) };
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(n).
-    pub fn cells_mut(&mut self) -> CellIterMut<T> {
-        return CellIterMut::new(self);
+    /// For iteration over immutable items in a grid. Items arrive in the order
+    /// increasing of x-asis then increasing of y-asis.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(n).
+    pub fn iter(&self) -> Iter<T> {
+        return Iter::new(self);
     }
 
-    /// * Arrange a new size for the container. If the new one is smaller then
-    ///   old values will be drop. If the new one is greater then new values is
-    ///   set to default.
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// For iteration over immutable items in a grid. Items arrive in the order
+    /// increasing of x-asis then increasing of y-asis.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(n).
+    pub fn iter_mut(&mut self) -> IterMut<T> {
+        return IterMut::new(self);
+    }
+
+    /// Arrange a new size for dimensionals. If dimensions are narrow, then old
+    /// items will be dropped. If dimensions are expanded, then new items will
+    /// be set as default.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn resize(&mut self, x: usize, y: usize)
     where
         T: Default,
@@ -218,10 +268,12 @@ impl<T, const X: usize, const Y: usize> From<[[T; X]; Y]> for Grid<T>
 where
     T: Clone + Default,
 {
-    /// * Create an instance from a 2-dimensional array where `value[i]` is a
-    ///   row and `value[i][k]` is a cell in the row.
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Create a new instance from a 2-dimensional array where `value[i]` is a
+    /// row and `value[i][k]` is an item in the row.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn from(value: [[T; X]; Y]) -> Self {
         let mut g = Grid::<T>::new();
         g.resize(X, Y);
@@ -238,8 +290,9 @@ impl<T> Clone for Grid<T>
 where
     T: Clone + Default,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn clone(&self) -> Self {
         let mut g = Grid::<T>::new();
         g.resize(self.size_x, self.size_y);
@@ -252,10 +305,33 @@ where
     }
 }
 
+impl<T> Index<(usize, usize)> for Grid<T> {
+    type Output = T;
+
+    /// Equivalent to [Self::get].
+    fn index(&self, index: (usize, usize)) -> &Self::Output {
+        let (x, y) = index;
+        return self.get(x, y);
+    }
+}
+
+impl<T> IndexMut<(usize, usize)> for Grid<T> {
+    /// Equivalent to [Self::get_mut].
+    fn index_mut(&mut self, index: (usize, usize)) -> &mut Self::Output {
+        let (x, y) = index;
+        return self.get_mut(x, y);
+    }
+}
+
+impl<T> Eq for Grid<T> where T: Eq {}
+
 impl<T> PartialEq for Grid<T>
 where
     T: Eq,
 {
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn eq(&self, other: &Self) -> bool {
         if self.size_x != other.size_x || self.size_y != other.size_y {
             return false;
@@ -272,6 +348,7 @@ where
 }
 
 impl<T> Drop for Grid<T> {
+    /// Equivalent to [Self::resize(0, 0)](Self::resize).
     fn drop(&mut self) {
         self.resize_zero();
     }

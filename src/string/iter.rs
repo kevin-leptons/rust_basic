@@ -56,7 +56,7 @@ fn kmp_find(
         if j >= string.size {
             return None;
         }
-        if pattern.code_at(k) == string.code_at(j) {
+        if pattern.get_code(k) == string.get_code(j) {
             j += 1;
             k += 1;
             if k == pattern.size {
@@ -104,14 +104,14 @@ impl KmpTable {
             if p as usize == pattern.size {
                 break;
             }
-            if pattern.code_at(p as usize) == pattern.code_at(c as usize) {
+            if pattern.get_code(p as usize) == pattern.get_code(c as usize) {
                 table.set_at(p as usize, table.get_at(c as usize));
             } else {
                 table.set_at(p as usize, c);
                 loop {
                     if (c < 1)
-                        || (pattern.code_at(p as usize)
-                            == pattern.code_at(c as usize))
+                        || (pattern.get_code(p as usize)
+                            == pattern.get_code(c as usize))
                     {
                         break;
                     }

@@ -13,22 +13,35 @@ mod iter;
 pub use self::iter::Iter;
 use std::{
     alloc::{self, handle_alloc_error, Layout},
+    ops::Index,
     ptr::{self, NonNull},
 };
 
 /// `entry` A container for first in - last out items.
+///
+/// # Overview
+///
+/// ```txt
+///                +---+
+///          +-> 2 | 3 |<--- top
+///          |     |---|
+/// index ---|-> 1 | 2 |
+///          |     |---|
+///          +-> 0 | 1 |<--- bottom
+///                +---+
+/// ```
 ///
 /// # Examples
 ///
 /// ```
 /// use rust_basic::Stack;
 ///
-/// let mut s = Stack::from(["one", "two", "three"]);
-/// s.push("four");
-/// assert_eq!(s.pop(), "four");
-/// assert_eq!(s.pop(), "three");
-/// assert_eq!(s.top(), &"two");
-/// assert_eq!(s.size(), 2);
+/// let mut s = Stack::from([1, 2]);
+/// s.push(3);
+/// assert_eq!(s.top(), &3);
+/// assert_eq!(s.pop(), 3);
+/// assert_eq!(s.pop(), 2);
+/// assert_eq!(s.pop(), 1);
 #[derive(Debug)]
 pub struct Stack<T> {
     slots: NonNull<T>,
@@ -37,8 +50,11 @@ pub struct Stack<T> {
 }
 
 impl<T> Stack<T> {
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Create an empty container.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn new() -> Self {
         return Self {
             slots: NonNull::dangling(),
@@ -47,14 +63,20 @@ impl<T> Stack<T> {
         };
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Quantity of items in the container.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn size(&self) -> usize {
         return self.top;
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Borrow the top item.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn top(&self) -> &T {
         assert!(self.top > 0, "expect: non empty stack");
         return unsafe {
@@ -62,16 +84,22 @@ impl<T> Stack<T> {
         };
     }
 
-    /// * Time complexity: O(1) or O(n).
-    /// * Space complexity: O(1) or O(n).
+    /// Put a new item on the top.
+    ///
+    /// Time complexity: O(1) or O(n).
+    ///
+    /// Space complexity: O(1) or O(n).
     pub fn push(&mut self, value: T) {
         self.expand_slots();
         unsafe { ptr::write(self.slots.as_ptr().add(self.top), value) }
         self.top = self.top + 1;
     }
 
-    /// * Time complexity: O(1) or O(n).
-    /// * Space complexity: O(1) or O(n).
+    /// Remove the top item and return it.
+    ///
+    /// Time complexity: O(1) or O(n).
+    ///
+    /// Space complexity: O(1) or O(n).
     pub fn pop(&mut self) -> T {
         assert!(self.top > 0, "expect: non empty stack");
         let item = unsafe { ptr::read(self.slots.as_ptr().add(self.top - 1)) };
@@ -80,26 +108,31 @@ impl<T> Stack<T> {
         return item;
     }
 
-    /// * Index `0` points to the bottom item and index `size - 1` points to top
-    ///   one.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Borrow an immutable item by index. The index begin from zero and points
+    /// to bottom.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn get(&self, index: usize) -> &T {
         assert!(index < self.top, "expect: `index` is less than size");
         return unsafe { &*self.slots.as_ptr().add(index) };
     }
 
-    /// * For iteration from bottom to top of the container.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// For iteration over immutable items, from the bottom to the top.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn iter(&self) -> Iter<T> {
         return Iter::new(self);
     }
 
-    /// * Remove all items from the container, drop them, and give back memory to
-    ///   allocator.
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Remove all items, drop them, and give back memory to allocator.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn clear(&mut self) {
         if self.top > 0 {
             unsafe {
@@ -178,12 +211,13 @@ impl<T> Stack<T> {
     }
 }
 
-impl<T, const N: usize> From<[T; N]> for Stack<T>
-where
-    T: Clone,
-{
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+impl<T, const N: usize> From<[T; N]> for Stack<T> {
+    /// Create a new instance from an array. The first item in the array become
+    /// the bottom item in the container.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn from(value: [T; N]) -> Self {
         let mut s = Stack::<T>::new();
         for i in value.into_iter() {
@@ -193,12 +227,13 @@ where
     }
 }
 
-impl<T> FromIterator<T> for Stack<T>
-where
-    T: Clone,
-{
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+impl<T> FromIterator<T> for Stack<T> {
+    /// Create a new instance from an iterator. The first item in the iterator
+    /// become the bottom item in the container.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut s = Stack::<T>::new();
         for i in iter {
@@ -208,9 +243,12 @@ where
     }
 }
 
-impl<T> Drop for Stack<T> {
-    fn drop(&mut self) {
-        self.clear();
+impl<T> Index<usize> for Stack<T> {
+    type Output = T;
+
+    /// Equivalent to [Self::get].
+    fn index(&self, index: usize) -> &Self::Output {
+        return self.get(index);
     }
 }
 
@@ -218,13 +256,21 @@ impl<T> Clone for Stack<T>
 where
     T: Clone,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn clone(&self) -> Self {
         let mut s = Stack::<T>::new();
         for i in self.iter() {
             s.push(i.clone());
         }
         return s;
+    }
+}
+
+impl<T> Drop for Stack<T> {
+    /// Equivalent to [Self::clear].
+    fn drop(&mut self) {
+        self.clear();
     }
 }

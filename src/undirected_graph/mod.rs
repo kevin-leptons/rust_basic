@@ -22,33 +22,37 @@ use self::iter::TravelMutIter;
 
 /// `entry` A container for the undirected graph.
 ///
+/// # Overview
+///
+/// ```txt
+///          3 <----------- edge's cost
+/// [ 0 ]---------[ 1 ]<--- vertex
+///   |             |<----- edge
+///   |             |
+///   4             1
+///   |             |
+///   |      2      |
+/// [ 2 ]---------[ 3 ]
+/// ```
+///
 /// # Example
 ///
 /// ````
-/// /// Build and travel on a graph like this:
-/// ///
-/// ///           3
-/// /// [ 00 ]---------[ 01 ]
-/// ///   |              |
-/// ///   |              |
-/// ///   4              1
-/// ///   |              |
-/// ///   |       2      |
-/// /// [ 02 ]---------[ 03 ]
-///
-/// use rust_basic::undirected_graph::{UndirectedGraph, RawEdge};
+/// use rust_basic::{UndirectedGraph, Vector};
 ///
 /// let mut g = UndirectedGraph::new();
-/// g.new_vertexes([00, 01, 02, 03]);
+/// g.new_vertexes([0, 1, 2, 3]);
 /// g.new_edges([
-///     (00, 01, 3),
-///     (00, 02, 4),
-///     (01, 03, 1),
-///     (03, 02, 2),
+///     (0, 1, 3),
+///     (0, 2, 4),
+///     (1, 3, 1),
+///     (3, 2, 2),
 /// ]);
-/// for v in g.travel(01) {
-///     assert!(v.identity() <= 3);
-/// }
+/// let mut visited: Vector<u64> = g.travel(1)
+///     .map(|v| v.identity())
+///     .collect();
+/// visited.sort();
+/// assert_eq!(visited, Vector::from([0, 1, 2, 3]));
 #[derive(Debug)]
 pub struct UndirectedGraph {
     vertexes: HashMap<u64, *mut Vertex>,
@@ -56,8 +60,11 @@ pub struct UndirectedGraph {
 }
 
 impl UndirectedGraph {
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Create a new empty instance.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn new() -> Self {
         return Self {
             vertexes: HashMap::new(),
@@ -65,22 +72,29 @@ impl UndirectedGraph {
         };
     }
 
-    /// * For iteration over vertexes in the graph.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// For iteration over vertexes.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn vertexes(&self) -> VertexIter {
         return VertexIter::new(&self.vertexes);
     }
 
-    /// * For iteration over edges in the graph.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// For iteration over edges.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn edges(&self) -> EdgeIter {
         return EdgeIter::new(&self.edges);
     }
 
-    /// * Time complexity: O(1) or O(|V|).
-    /// * Space complexity: O(|V|).
+    /// Create a new vertex.
+    ///
+    /// Time complexity: O(1) or O(|V|).
+    ///
+    /// Space complexity: O(|V|).
     pub fn new_vertex(&mut self, identity: u64) {
         assert!(
             !self.vertexes.has(&identity),
@@ -89,28 +103,36 @@ impl UndirectedGraph {
         let v = Vertex {
             identity: identity,
             zone: identity,
-            visited: false,
         };
         let b = Box::new(v);
         self.vertexes.set(identity, Box::leak(b));
     }
 
-    /// * Time complexity: O(|V|).
-    /// * Space complexity: O(|V|).
+    /// Create new vertexes from an array.
+    ///
+    /// Time complexity: O(|V|).
+    ///
+    /// Space complexity: O(|V|).
     pub fn new_vertexes<const N: usize>(&mut self, vertexes: [u64; N]) {
         self.new_vertexes_iter(vertexes.into_iter());
     }
 
-    /// * Time complexity: O(|V|).
-    /// * Space complexity: O(|V|).
+    /// Create new vertexes from an iterator.
+    ///
+    /// Time complexity: O(|V|).
+    ///
+    /// Space complexity: O(|V|).
     pub fn new_vertexes_iter(&mut self, vertexes: impl Iterator<Item = u64>) {
         for v in vertexes {
             self.new_vertex(v);
         }
     }
 
-    /// * Time complexity: O(1) or O(|E|).
-    /// * Space complexity: O(|E|).
+    /// Create a new edge.
+    ///
+    /// Time complexity: O(1) or O(|E|).
+    ///
+    /// Space complexity: O(|E|).
     pub fn new_edge(&mut self, raw: RawEdge) {
         let (v1_id, v2_id, cost) = raw;
         let v1 = match self.vertexes.get(&v1_id) {
@@ -130,24 +152,32 @@ impl UndirectedGraph {
         self.edges.set(i, Box::leak(b));
     }
 
-    /// * Time complexity: O(|E|).
-    /// * Space complexity: O(|E|).
+    /// Create new edges from an array.
+    ///
+    /// Time complexity: O(|E|).
+    ///
+    /// Space complexity: O(|E|).
     pub fn new_edges<const N: usize>(&mut self, edges: [RawEdge; N]) {
         self.new_edges_iter(edges.into_iter());
     }
 
-    /// * Time complexity: O(|E|).
-    /// * Space complexity: O(|E|).
+    /// Create new edges from an iterator.
+    ///
+    /// Time complexity: O(|E|).
+    ///
+    /// Space complexity: O(|E|).
     pub fn new_edges_iter(&mut self, edges: impl Iterator<Item = RawEdge>) {
         for e in edges {
             self.new_edge(e);
         }
     }
 
-    /// * For iteration over vertexes which is connected with `from`.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
-    pub fn travel(&mut self, from: u64) -> TravelIter {
+    /// For iteration over vertexes which are connected with the vertex `from`.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
+    pub fn travel(&self, from: u64) -> TravelIter {
         let from_vertex = match self.vertexes.get(&from) {
             None => panic!("expect: `from` is existed vertex"),
             Some(v) => v.clone(),
@@ -155,10 +185,13 @@ impl UndirectedGraph {
         return TravelIter::new(from_vertex, self);
     }
 
-    /// * Find the first minimum spanning forest.
-    /// * Algorithm: Kruskal.
-    /// * Time complexity: O(|E|).log(|V|)).
-    /// * Space complexity: O(|V| + |E|).
+    /// Find the first minimum spanning forest.
+    ///
+    /// Algorithm: Kruskal.
+    ///
+    /// Time complexity: O(|E|).log(|V|)).
+    ///
+    /// Space complexity: O(|V| + |E|).
     pub fn kruskal(&self) -> UndirectedGraph {
         unsafe {
             let mut g = self.clone_with_no_edges();
@@ -236,6 +269,9 @@ impl UndirectedGraph {
 }
 
 impl Drop for UndirectedGraph {
+    /// Time complexity: O(|V| + |E|).
+    ///
+    /// Space complexity: O(|V| + |E|).
     fn drop(&mut self) {
         unsafe {
             for v in self.vertexes.values() {

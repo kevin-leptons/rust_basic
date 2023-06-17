@@ -18,17 +18,28 @@ pub use iter::Iter;
 /// The priority is based on comparison between two items `a` and `b`. If `a >
 /// b` then `a` has higher priority than `b`. The implementation based on Heap.
 ///
+/// # Overview
+///
+/// ```txt
+/// +---+
+/// | 3 |<--- top
+/// |---|
+/// | 2 |
+/// |---|
+/// | 1 |<--- bottom
+/// +---+
+/// ```
+///
 /// # Example
 ///
 /// ```
 /// use rust_basic::PriorityQueue;
 ///
-/// let mut q = PriorityQueue::from(["item: 2", "item: 0", "item: 1"]);
-/// q.push("item: 9");
-/// assert_eq!(q.pop().unwrap(), "item: 9");
-/// assert_eq!(q.pop().unwrap(), "item: 2");
-/// assert_eq!(q.size(), 2);
-/// assert_eq!(q.top().unwrap(), &"item: 1");
+/// let mut q = PriorityQueue::from([2, 3, 1]);
+/// assert_eq!(q.top(), &3);
+/// assert_eq!(q.pop(), 3);
+/// assert_eq!(q.pop(), 2);
+/// assert_eq!(q.pop(), 1);
 pub struct PriorityQueue<T>
 where
     T: Ord,
@@ -40,22 +51,41 @@ impl<T> PriorityQueue<T>
 where
     T: Ord,
 {
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Create a new empty instance.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn new() -> Self {
         return Self {
             slots: Vector::<T>::new(),
         };
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Quantity of items.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn size(&self) -> usize {
         return self.slots.size();
     }
 
-    /// * Time complexity: O(1), O(log(n)) or O(n).
-    /// * Space complexity: O(n).
+    /// Borrow immutable highest priority item.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(n).
+    pub fn top(&self) -> &T {
+        assert!(self.slots.size() > 0, "expect: non empty queue");
+        return self.slots.get(0);
+    }
+
+    /// Put a new item into the container.
+    ///
+    /// Time complexity: O(1), O(log(n)) or O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn push(&mut self, value: T) {
         self.slots.set(self.slots.size(), value);
         let mut child_index = self.slots.size() - 1;
@@ -73,15 +103,15 @@ where
         }
     }
 
-    /// * Remove highest priority item from the container.
-    /// * Time complexity: O(1), O(log(n)) or O(n).
-    /// * Space complexity: O(n).
-    pub fn pop(&mut self) -> Option<T> {
-        if self.slots.size() == 0 {
-            return None;
-        }
+    /// Remove the highest priority item.
+    ///
+    /// Time complexity: O(1), O(log(n)) or O(n).
+    ///
+    /// Space complexity: O(n).
+    pub fn pop(&mut self) -> T {
+        assert!(self.slots.size() > 0, "expect: non empty queue");
         if self.slots.size() == 1 {
-            return Some(self.slots.remove(0));
+            return self.slots.remove(0);
         }
         self.slots.swap(0, self.slots.size() - 1);
         let top = self.slots.remove(self.slots.size() - 1);
@@ -98,31 +128,24 @@ where
                 break;
             }
         }
-        return Some(top);
+        return top;
     }
 
-    /// * Retrieve highest priority item without remove it from the container.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(n).
-    pub fn top(&self) -> Option<&T> {
-        if self.size() == 0 {
-            return None;
-        }
-        return Some(self.slots.get(0));
-    }
-
-    /// * For iteration over items in the queue. It does not guarantee items
-    ///   come in ordered of priority.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// For iteration over items. It does not guarantee items will arrive in
+    /// ordered of priority.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn iter(&self) -> Iter<T> {
         return Iter::new(self);
     }
 
-    /// * Remove all items from the queue, drop them and give back memory to
-    ///   allocator.
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(1).
+    /// Remove all items, drop them and give back memory to allocator.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(1).
     pub fn clear(&mut self) {
         self.slots.clear();
     }
@@ -155,8 +178,9 @@ impl<T, const N: usize> From<[T; N]> for PriorityQueue<T>
 where
     T: Ord,
 {
-    /// * Time complexity: O(n.log(n)).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n.log(n)).
+    ///
+    /// Space complexity: O(n).
     fn from(value: [T; N]) -> Self {
         let mut q = PriorityQueue::<T>::new();
         for i in value {
@@ -170,8 +194,9 @@ impl<T> FromIterator<T> for PriorityQueue<T>
 where
     T: Ord,
 {
-    /// * Time complexity: O(n.log(n)).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n.log(n)).
+    ///
+    /// Space complexity: O(n).
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut q = PriorityQueue::<T>::new();
         for i in iter {

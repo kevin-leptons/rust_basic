@@ -17,10 +17,10 @@ use node::Node;
 
 pub use self::iter::{KeyIter, ValueIter};
 
-/// `entry` A container for unique items.
+/// `entry` A container for pairs key-value.
 ///
-/// The APIs are similar as a set, with extra ones such as [min()](Self::min)
-/// and [max()](Self::max). The implementation is based on a Binary Search Tree.
+/// The APIs are similar as a [crate::HashMap], with extra ones such as
+/// [min()](Self::min) and [max()](Self::max).
 ///
 /// # Example
 ///
@@ -32,7 +32,7 @@ pub use self::iter::{KeyIter, ValueIter};
 ///     (3, 5),
 ///     (9, 2),
 /// ]);
-/// assert_eq!(t.get(&3), Some(&5));
+/// assert_eq!(t.get(&3), &5);
 /// assert_eq!(t.min(), &1);
 /// assert_eq!(t.max(), &9);
 pub struct BinarySearchTree<K, V>
@@ -47,8 +47,11 @@ impl<K, V> BinarySearchTree<K, V>
 where
     K: Ord,
 {
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Create a new empty instance.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn new() -> Self {
         return Self {
             root: None,
@@ -56,16 +59,22 @@ where
         };
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Quantity of pairs.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn size(&self) -> usize {
         return self.size;
     }
 
-    /// * Put an item into the container.
-    /// * Time complexity: O(log(n)) or O(n).
-    /// * Space complexity: O(n).
-    pub fn set(&mut self, key: K, value: V) {
+    /// Put a pair into the container. If the key is already existing then
+    /// return the old value.
+    ///
+    /// Time complexity: O(log(n)) or O(n).
+    ///
+    /// Space complexity: O(n).
+    pub fn set(&mut self, key: K, value: V) -> Option<V> {
         let new_node = Node {
             key: key,
             value: value,
@@ -79,7 +88,7 @@ where
             None => {
                 self.root = Some(x);
                 self.size = 1;
-                return;
+                return None;
             }
             Some(v) => v,
         };
@@ -102,67 +111,88 @@ where
                         break;
                     }
                 } else {
-                    panic!("expect: no duplicated key");
+                    self.replace(x, n);
+                    let bn = Box::from_raw(n);
+                    return Some(bn.value);
                 }
             }
         }
         self.size += 1;
+        return None;
     }
 
-    /// * Time complexity: O(log(n)) or O(n).
-    /// * Space complexity: O(n).
-    pub fn get(&self, key: &K) -> Option<&V> {
+    /// Borrow an immutable value.
+    ///
+    /// Time complexity: O(log(n)) or O(n).
+    ///
+    /// Space complexity: O(n).
+    pub fn get(&self, key: &K) -> &V {
         unsafe {
             match self.lookup(key) {
-                None => return None,
-                Some(v) => Some(&(*v).value),
+                None => panic!("expect: an existing key"),
+                Some(v) => return &(*v).value,
             }
         }
     }
 
-    /// * Time complexity: O(log(n)) or O(n).
-    /// * Space complexity: O(n).
-    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+    /// Borrow a mutable value.
+    ///
+    /// Time complexity: O(log(n)) or O(n).
+    ///
+    /// Space complexity: O(n).
+    pub fn get_mut(&mut self, key: &K) -> &mut V {
         unsafe {
             match self.lookup(key) {
-                None => return None,
-                Some(v) => Some(&mut (*v).value),
+                None => panic!("expect: an existing key"),
+                Some(v) => return &mut (*v).value,
             }
         }
     }
 
-    /// * Time complexity: O(log(n)) or O(n).
-    /// * Space complexity: O(n).
+    /// If the key does exist then return `true`.
+    ///
+    /// Time complexity: O(log(n)) or O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn has(&self, key: &K) -> bool {
         return self.lookup(key).is_some();
     }
 
-    /// * For iteration over pairs in the container. It does not guarantee that
-    ///   items will arrive in a specific order.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// For iteration over pairs. It does not guarantee that items will arrive
+    /// in a specific order.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn iter(&self) -> Iter<K, V> {
         return Iter::new(self.root);
     }
 
-    /// * For iteration over keys in the container. It does not guarantee that
-    ///   items will arrive in a specific order.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// For iteration over keys. It does not guarantee that items will arrive
+    /// in a specific order.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn keys(&self) -> KeyIter<K, V> {
         return KeyIter::new(self.root);
     }
 
-    /// * For iteration over values in the container. It does not guarantee that
-    ///   items will arrive in a specific order.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// For iteration over values. It does not guarantee that items will
+    /// arrive in a specific order.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn values(&self) -> ValueIter<K, V> {
         return ValueIter::new(self.root);
     }
 
-    /// * Time complexity: O(log(n)) or O(n).
-    /// * Space complexity: O(n).
+    /// Borrow immutable value that has minimum key.
+    ///
+    /// Time complexity: O(log(n)) or O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn min(&self) -> &K {
         let mut n = match self.root {
             None => panic!("expect: non empty tree"),
@@ -178,8 +208,11 @@ where
         }
     }
 
-    /// * Time complexity: O(log(n)) or O(n).
-    /// * Space complexity: O(n).
+    /// Borrow immutable value that has maximum key.
+    ///
+    /// Time complexity: O(log(n)) or O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn max(&self) -> &K {
         let mut n = match self.root {
             None => panic!("expect: non empty tree"),
@@ -195,8 +228,11 @@ where
         }
     }
 
-    /// * Time complexity: O(log(n)) or O(n).
-    /// * Space complexity: O(n).
+    /// Remove a pair and return the old value.
+    ///
+    /// Time complexity: O(log(n)) or O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn remove(&mut self, value: &K) -> Option<V> {
         let z = match self.lookup(value) {
             None => return None,
@@ -218,10 +254,11 @@ where
         }
     }
 
-    /// * Remove all items from the container, drop them and give back memory to
-    ///   allocator.
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Remove all items, drop them and give back memory to allocator.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn clear(&mut self) {
         unsafe {
             for node in TravelNodePostIter::new(self.root) {
@@ -320,14 +357,44 @@ where
             }
         }
     }
+
+    unsafe fn replace(
+        &mut self,
+        source: *mut Node<K, V>,
+        target: *mut Node<K, V>,
+    ) {
+        match (*target).parent {
+            None => self.root = Some(source),
+            Some(v) => {
+                if (*v).left == Some(target) {
+                    (*v).left = Some(source);
+                } else if (*v).right == Some(target) {
+                    (*v).right = Some(source);
+                } else {
+                    panic!("unexpected: bad link")
+                }
+            }
+        }
+        (*source).left = (*target).left;
+        (*source).right = (*target).right;
+        match (*target).left {
+            None => {}
+            Some(v) => (*v).parent = Some(source),
+        };
+        match (*target).right {
+            None => {}
+            Some(v) => (*v).parent = Some(source),
+        }
+    }
 }
 
 impl<K, V, const N: usize> From<[(K, V); N]> for BinarySearchTree<K, V>
 where
     K: Ord,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn from(value: [(K, V); N]) -> Self {
         return Self::from_iter(value);
     }
@@ -337,8 +404,9 @@ impl<K, V> FromIterator<(K, V)> for BinarySearchTree<K, V>
 where
     K: Ord,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
         let mut t = BinarySearchTree::<K, V>::new();
         for (k, v) in iter {
@@ -352,8 +420,7 @@ impl<K, V> Drop for BinarySearchTree<K, V>
 where
     K: Ord,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Equivalent to [Self::clear].
     fn drop(&mut self) {
         self.clear();
     }

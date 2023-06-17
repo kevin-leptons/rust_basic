@@ -284,25 +284,25 @@ fn lower() {
 }
 
 #[test]
-fn code_at() {
+fn get_code() {
     let s = String::from("a b C");
-    assert_eq!(s.code_at(0), 0x61);
-    assert_eq!(s.code_at(2), 0x62);
-    assert_eq!(s.code_at(4), 0x43);
+    assert_eq!(s.get_code(0), 0x61);
+    assert_eq!(s.get_code(2), 0x62);
+    assert_eq!(s.get_code(4), 0x43);
 }
 
 #[test]
 #[should_panic(expected = "expect: `index` is less than size")]
-fn code_at_panic() {
+fn get_code_panic() {
     let s = String::from("a b C");
-    s.code_at(5);
+    s.get_code(5);
 }
 
 #[test]
 #[should_panic(expected = "expect: `index` is less than size")]
-fn char_at() {
+fn get() {
     let s = String::from("a b C");
-    s.char_at(5);
+    s.get(5);
 }
 
 #[test]

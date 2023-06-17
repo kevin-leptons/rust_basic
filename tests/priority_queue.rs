@@ -32,19 +32,18 @@ fn pop() {
     q.push(v2.clone());
     q.push(v1.clone());
     q.push(v3.clone());
-    assert_eq!(q.pop().unwrap(), v4);
+    assert_eq!(q.pop(), v4);
     assert_eq!(q.size(), 5);
-    assert_eq!(q.pop().unwrap(), v3);
+    assert_eq!(q.pop(), v3);
     assert_eq!(q.size(), 4);
-    assert_eq!(q.pop().unwrap(), v3);
+    assert_eq!(q.pop(), v3);
     assert_eq!(q.size(), 3);
-    assert_eq!(q.pop().unwrap(), v2);
+    assert_eq!(q.pop(), v2);
     assert_eq!(q.size(), 2);
-    assert_eq!(q.pop().unwrap(), v1);
+    assert_eq!(q.pop(), v1);
     assert_eq!(q.size(), 1);
-    assert_eq!(q.pop().unwrap(), v1);
+    assert_eq!(q.pop(), v1);
     assert_eq!(q.size(), 0);
-    assert_eq!(q.pop(), None);
 }
 
 #[test]
@@ -59,7 +58,7 @@ fn top() {
     q.push(v4.clone());
     q.push(v2.clone());
     q.push(v4.clone());
-    assert_eq!(q.top().unwrap(), &v4);
+    assert_eq!(q.top(), &v4);
 }
 
 #[test]
@@ -72,7 +71,7 @@ fn from_array() {
     let mut q = PriorityQueue::from(a.clone());
     assert_eq!(q.size(), a.len());
     for i in (0..q.size()).rev() {
-        assert_eq!(q.pop().unwrap(), format!("item: {}", i));
+        assert_eq!(q.pop(), format!("item: {}", i));
     }
 }
 
@@ -86,7 +85,7 @@ fn from_iter() {
     let mut q = PriorityQueue::from_iter(a.clone().into_iter());
     assert_eq!(q.size(), a.len());
     for i in (0..q.size()).rev() {
-        assert_eq!(q.pop().unwrap(), format!("item: {}", i));
+        assert_eq!(q.pop(), format!("item: {}", i));
     }
 }
 

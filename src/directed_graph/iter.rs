@@ -1,4 +1,6 @@
-use crate::{hash_map::ValueIter, HashMap};
+use crate::{
+    hash_map::ValueIter, DirectedGraph, HashMap, HashSet, Queue, Vector,
+};
 
 use super::{edge::Edge, Vertex};
 
@@ -36,5 +38,46 @@ impl<'a> Iterator for EdgeIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         return self.iter.next();
+    }
+}
+
+/// For iteration over vertexes.
+pub struct TravelIter<'a> {
+    queue: Queue<&'a Vertex>,
+    graph: &'a DirectedGraph,
+    visited: HashSet<u64>,
+}
+
+impl<'a> TravelIter<'a> {
+    pub(super) fn new(from: u64, graph: &'a DirectedGraph) -> Self {
+        let v = match graph.vertexes.get(&from) {
+            None => panic!("expect: an existing vertex"),
+            Some(v) => v,
+        };
+        return Self {
+            queue: Queue::from([v]),
+            visited: HashSet::new(),
+            graph: graph,
+        };
+    }
+}
+
+impl<'a> Iterator for TravelIter<'a> {
+    type Item = &'a Vertex;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.queue.size() == 0 {
+            return None;
+        }
+        let v = self.queue.pop();
+        for i in v.edges.keys() {
+            let c = self.graph.vertexes.get(i).unwrap();
+            if self.visited.has(&c.identity) {
+                continue;
+            }
+            self.queue.push(c);
+            self.visited.add(c.identity);
+        }
+        return Some(v);
     }
 }

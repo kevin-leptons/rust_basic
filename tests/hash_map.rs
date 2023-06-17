@@ -1,7 +1,7 @@
 mod common;
 
 use common::{get_key_custom_type, get_value_custom_type};
-use rust_basic::hash_map::HashMap;
+use rust_basic::{HashMap, Hashable};
 
 #[test]
 fn set() {
@@ -197,4 +197,19 @@ fn clear() {
         assert_eq!(m.get(&key), None);
         assert_eq!(m.has(&key), false);
     }
+}
+
+#[test]
+fn string_hash() {
+    let v1 = String::from("");
+    let v2 = String::from("key: 1001");
+    let v3 = String::from("key: 1001");
+    let v4 = String::from("foo bar: 3");
+    let h1 = v1.hash();
+    let h2 = v2.hash();
+    let h3 = v3.hash();
+    let h4 = v4.hash();
+    assert_eq!(h2, h3);
+    assert_ne!(h2, h1);
+    assert_ne!(h2, h4);
 }

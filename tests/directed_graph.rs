@@ -84,8 +84,16 @@ fn new_edges_iter() {
 }
 
 #[test]
+fn travel() {
+    let mut g = sample_dijkstra();
+    let mut visited: Vector<u64> = g.travel(0).map(|v| v.identity()).collect();
+    visited.sort();
+    assert_eq!(visited, Vector::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]));
+}
+
+#[test]
 fn dijkstra() {
-    let g = build_sample_dijkstra();
+    let g = sample_dijkstra();
     let result = g.dijkstra(0, 9);
     assert!(result.is_some());
     let path = result.unwrap();
@@ -95,7 +103,7 @@ fn dijkstra() {
 
 #[test]
 fn kahn() {
-    let mut g = build_sample_topological();
+    let mut g = sample_topological();
     let result = g.kahn();
     assert!(result.is_some());
     let actual = result.unwrap();
@@ -137,7 +145,7 @@ fn kahn() {
 ///                   ^            |  |                              |
 ///                   |      0     |  |                              |
 ///                   +------------+  +------------------------------+
-fn build_sample_dijkstra() -> DirectedGraph {
+fn sample_dijkstra() -> DirectedGraph {
     let mut g = DirectedGraph::new();
     g.new_vertexes([
         (0, 2),
@@ -193,7 +201,7 @@ fn build_sample_dijkstra() -> DirectedGraph {
 ///                                   |                              |
 ///                                   |                              |
 ///                                   +------------------------------+
-fn build_sample_topological() -> DirectedGraph {
+fn sample_topological() -> DirectedGraph {
     let mut g = DirectedGraph::new();
     g.new_vertexes([
         (0, 0),

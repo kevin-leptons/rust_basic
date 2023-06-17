@@ -24,8 +24,39 @@ fn push_then_pop_non_primitive_type() {
 }
 
 #[test]
+fn index() {
+    let a = sample();
+    let s = Stack::from(a);
+    for i in 0..s.size() {
+        assert_eq!(s[i], format!("item: {}", i));
+    }
+}
+
+#[test]
+#[should_panic(expected = "expect: `index` is less than size")]
+fn index_panic_empty() {
+    let s = Stack::<String>::new();
+    let _ = s[0].len();
+}
+
+#[test]
+#[should_panic(expected = "expect: `index` is less than size")]
+fn index_panic_non_empty() {
+    let s = sample();
+    let _ = s[s.size()].len();
+}
+
+#[test]
+fn pop() {
+    let mut s = sample();
+    for i in (0..s.size()).rev() {
+        assert_eq!(s.pop(), format!("item: {}", i));
+    }
+}
+
+#[test]
 #[should_panic(expected = "expect: non empty stack")]
-fn pop_from_panic() {
+fn pop_panic() {
     let mut s = Stack::<u32>::new();
     s.pop();
 }
@@ -54,15 +85,6 @@ fn iter() {
         assert_eq!(v, &format!("value: {}", i));
         i += 1;
     }
-}
-
-#[test]
-fn clear() {
-    let mut s = Stack::<String>::new();
-    for i in 0..100000 {
-        s.push(format!("value: {}", i));
-    }
-    s.clear();
 }
 
 #[test]
@@ -97,15 +119,26 @@ fn from_iter() {
 
 #[test]
 fn clone() {
-    let s0 = Stack::from([
-        "item: 0".to_string(),
-        "item: 1".to_string(),
-        "item: 2".to_string(),
-    ]);
+    let s0 = sample();
     let s1 = s0.clone();
     assert_eq!(s0.size(), s1.size());
     assert_eq!(s1.top(), s0.top());
     for i in 0..s0.size() {
         assert_eq!(s0.get(i), s1.get(i));
     }
+}
+
+#[test]
+fn clear() {
+    let mut s = sample();
+    s.clear();
+}
+
+fn sample() -> Stack<String> {
+    let mut s = Stack::new();
+    for i in 0..100000 {
+        let item = format!("item: {}", i);
+        s.push(item);
+    }
+    return s;
 }

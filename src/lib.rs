@@ -46,9 +46,6 @@ pub use directed_graph::DirectedGraph;
 pub use grid::Grid;
 
 #[doc(inline)]
-pub use hash::HashKey;
-
-#[doc(inline)]
 pub use hash_map::HashMap;
 
 #[doc(inline)]
@@ -85,4 +82,4 @@ pub use undirected_graph::UndirectedGraph;
 pub use vector::Vector;
 
 #[doc(inline)]
-pub use hash::murmur_v3_32;
+pub use hash::{murmur_v2_64, murmur_v3_32, Hashable};

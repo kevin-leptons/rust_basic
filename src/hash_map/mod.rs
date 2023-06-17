@@ -8,27 +8,35 @@
 //! more about how to explore APIs and access to [Entry APIs
 //! List](crate#structs).
 
+mod etc;
 mod iter;
 
-use crate::hash::HashKey;
+use etc::{Slot, State};
 pub use iter::{Iter, KeyIter, ValueIter, ValueIterMut};
 use std::alloc::{self, handle_alloc_error, Layout};
 use std::ptr::{self, NonNull};
 
-enum State {
-    NotFound,
-    Empty,
-    Filled,
-    Deleted,
-}
-
-struct Slot<K: HashKey, V> {
-    state: State,
-    key: K,
-    value: V,
-}
+use crate::hash::Hashable;
 
 /// `entry` A container for pairs key-value.
+///
+/// # Overview
+///
+/// ```txt
+///   +---------------- key
+///   |
+///   v
+/// +-------------+
+/// | 1 | "one"   |<--- value
+/// |-------------|
+/// | 2 | "two"   |
+/// |-------------|
+/// | 3 | "three" |
+/// +-------------+
+///   ^      ^
+///   |      |
+///   +--------------- pair
+/// ```
 ///
 /// # Example
 ///
@@ -42,20 +50,27 @@ struct Slot<K: HashKey, V> {
 /// ]);
 /// m.set(4, "four");
 /// assert_eq!(m.has(&4), true);
-/// assert_eq!(m.get(&1), Some(&"one"));
 /// assert_eq!(m.remove(&1), Some("one"));
-/// assert_eq!(m.has(&1), false);
-/// assert_eq!(m.size(), 3);
+/// assert_eq!(m.get(&1), None);
 #[derive(Debug)]
-pub struct HashMap<K: HashKey, V> {
+pub struct HashMap<K, V>
+where
+    K: Hashable + Eq,
+{
     slots: NonNull<Slot<K, V>>,
     size: usize,
     capacity: usize,
 }
 
-impl<K: HashKey, V> HashMap<K, V> {
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+impl<K, V> HashMap<K, V>
+where
+    K: Hashable + Eq,
+{
+    /// Create a new empty instance.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn new() -> Self {
         return Self {
             slots: NonNull::dangling(),
@@ -64,14 +79,21 @@ impl<K: HashKey, V> HashMap<K, V> {
         };
     }
 
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
+    /// Quantity of pairs.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
     pub fn size(&self) -> usize {
         return self.size;
     }
 
-    /// * Time complexity: O(1) or O(n).
-    /// * Space complexity: O(n).
+    /// Put a new pair key-value. If the key is already existed then remove the
+    /// old pair and return the old value.
+    ///
+    /// Time complexity: O(1) or O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn set(&mut self, key: K, value: V) -> Option<V> {
         self.expand();
         match Self::set_to(key, value, &self.slots, self.capacity) {
@@ -83,16 +105,19 @@ impl<K: HashKey, V> HashMap<K, V> {
         }
     }
 
-    /// * Time complexity: O(1) or O(n).
-    /// * Space complexity: O(n).
+    /// Borrow immutable value.
+    ///
+    /// Time complexity: O(1) or O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn get<'a>(&'a self, key: &K) -> Option<&'a V> {
         if self.size == 0 {
             return None;
         }
-        let hash = key.hash_key();
+        let hash = key.hash();
         let from = (hash as usize) % self.capacity;
         let (state, index) =
-            Self::lookup(from, key, &self.slots, self.capacity);
+            Self::lookup(from, key, &self.slots, hash, self.capacity);
         match state {
             State::Empty | State::Deleted | State::NotFound => {
                 return Option::None
@@ -104,16 +129,19 @@ impl<K: HashKey, V> HashMap<K, V> {
         }
     }
 
-    /// * Time complexity: O(1) or O(n).
-    /// * Space complexity: O(n).
-    pub fn get_mut<'a>(&'a self, key: &K) -> Option<&'a mut V> {
+    /// Borrow mutable value.
+    ///
+    /// Time complexity: O(1) or O(n).
+    ///
+    /// Space complexity: O(n).
+    pub fn get_mut<'a>(&'a mut self, key: &K) -> Option<&'a mut V> {
         if self.size == 0 {
             return None;
         }
-        let hash = key.hash_key();
+        let hash = key.hash();
         let from = (hash as usize) % self.capacity;
         let (state, index) =
-            Self::lookup(from, key, &self.slots, self.capacity);
+            Self::lookup(from, key, &self.slots, hash, self.capacity);
         match state {
             State::Empty | State::Deleted | State::NotFound => {
                 return Option::None
@@ -125,13 +153,71 @@ impl<K: HashKey, V> HashMap<K, V> {
         }
     }
 
-    /// * Time complexity: O(1) or O(n).
-    /// * Space complexity: O(n).
+    /// If the key does exist then return `true`.
+    ///
+    /// Time complexity: O(1) or O(n).
+    ///
+    /// Space complexity: O(n).
+    pub fn has(&self, key: &K) -> bool {
+        if self.size == 0 {
+            return false;
+        }
+        let hash = key.hash();
+        let from = (hash as usize) % self.capacity;
+        let (state, _) =
+            Self::lookup(from, &key, &self.slots, hash, self.capacity);
+        match state {
+            State::Filled => return true,
+            _ => return false,
+        }
+    }
+
+    /// For iteration over immutable pairs key-value.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
+    pub fn iter(&self) -> Iter<K, V> {
+        return Iter::new(self);
+    }
+
+    /// For iteration over immutable keys.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
+    pub fn keys(&self) -> KeyIter<K, V> {
+        return KeyIter::new(self);
+    }
+
+    /// For iteration over immutable values.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
+    pub fn values(&self) -> ValueIter<K, V> {
+        return ValueIter::new(self);
+    }
+
+    /// For iteration over mutable values.
+    ///
+    /// Time complexity: O(1).
+    ///
+    /// Space complexity: O(1).
+    pub fn values_mut(&mut self) -> ValueIterMut<K, V> {
+        return ValueIterMut::new(self);
+    }
+
+    /// Remove a pair and return the old value.
+    ///
+    /// Time complexity: O(1) or O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn remove(&mut self, key: &K) -> Option<V> {
         if self.size == 0 {
             return None;
         }
-        let hash = key.hash_key();
+        let hash = key.hash();
         let from = (hash as usize) % self.capacity;
         match Self::lookup_key(from, key, &self.slots, self.capacity) {
             None => return Option::None,
@@ -144,53 +230,11 @@ impl<K: HashKey, V> HashMap<K, V> {
         }
     }
 
-    /// * Time complexity: O(1) or O(n).
-    /// * Space complexity: O(n).
-    pub fn has(&self, key: &K) -> bool {
-        if self.size == 0 {
-            return false;
-        }
-        let hash = key.hash_key();
-        let from = (hash as usize) % self.capacity;
-        let (state, _) = Self::lookup(from, &key, &self.slots, self.capacity);
-        match state {
-            State::Filled => return true,
-            _ => return false,
-        }
-    }
-
-    /// * For iteration over pairs key-value in this container.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
-    pub fn iter(&self) -> Iter<K, V> {
-        return Iter::new(self);
-    }
-
-    /// * For iteration over keys in this container.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
-    pub fn keys(&self) -> KeyIter<K, V> {
-        return KeyIter::new(self);
-    }
-
-    /// * Return an iterator that be use to iterate all values in the map.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
-    pub fn values(&self) -> ValueIter<K, V> {
-        return ValueIter::new(self);
-    }
-
-    /// * For iteration over mutable value references in this container.
-    /// * Time complexity: O(1).
-    /// * Space complexity: O(1).
-    pub fn values_mut(&mut self) -> ValueIterMut<K, V> {
-        return ValueIterMut::new(self);
-    }
-
-    /// * Remove all items from the container, drop them and give back memory to
-    ///   allocator.
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Remove all pairs, drop values and give back memory to allocator.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     pub fn clear(&mut self) {
         if self.capacity == 0 {
             return;
@@ -216,6 +260,7 @@ impl<K: HashKey, V> HashMap<K, V> {
         from: usize,
         key: &K,
         slots: &NonNull<Slot<K, V>>,
+        hash: u64,
         capacity: usize,
     ) -> (State, usize) {
         unsafe {
@@ -225,7 +270,7 @@ impl<K: HashKey, V> HashMap<K, V> {
                     State::Empty => return (State::Empty, index),
                     State::Deleted => continue,
                     State::Filled => {
-                        if slot.key == *key {
+                        if slot.hash == hash && slot.key == *key {
                             return (State::Filled, index);
                         } else {
                             continue;
@@ -300,12 +345,12 @@ impl<K: HashKey, V> HashMap<K, V> {
         slots: &NonNull<Slot<K, V>>,
         capacity: usize,
     ) -> Option<V> {
-        let hash = key.hash_key();
+        let hash = key.hash();
         let from = (hash as usize) % capacity;
-        let (state, index) = Self::lookup(from, &key, &slots, capacity);
+        let (state, index) = Self::lookup(from, &key, &slots, hash, capacity);
         match state {
             State::Empty | State::Deleted => {
-                Self::write(index, key, value, slots);
+                Self::write(index, key, value, hash, slots);
                 return Option::None;
             }
             State::Filled => {
@@ -323,7 +368,8 @@ impl<K: HashKey, V> HashMap<K, V> {
         slots: &NonNull<Slot<K, V>>,
     ) -> V {
         let old_value = Self::read(index, slots);
-        Self::write(index, key, new_value, slots);
+        let hash = key.hash();
+        Self::write(index, key, new_value, hash, slots);
         return old_value;
     }
 
@@ -353,10 +399,17 @@ impl<K: HashKey, V> HashMap<K, V> {
         return &mut slot.value;
     }
 
-    fn write(index: usize, key: K, value: V, slots: &NonNull<Slot<K, V>>) {
+    fn write(
+        index: usize,
+        key: K,
+        value: V,
+        hash: u64,
+        slots: &NonNull<Slot<K, V>>,
+    ) {
         let slot = Slot::<K, V> {
             state: State::Filled,
             key: key,
+            hash: hash,
             value: value,
         };
         unsafe { ptr::write(slots.as_ptr().add(index), slot) }
@@ -438,10 +491,11 @@ impl<K: HashKey, V> HashMap<K, V> {
 
 impl<K, V, const N: usize> From<[(K, V); N]> for HashMap<K, V>
 where
-    K: HashKey,
+    K: Hashable + Eq,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn from(value: [(K, V); N]) -> Self {
         let mut m = HashMap::<K, V>::new();
         for (key, value) in value {
@@ -453,10 +507,11 @@ where
 
 impl<K, V> FromIterator<(K, V)> for HashMap<K, V>
 where
-    K: HashKey,
+    K: Hashable + Eq,
 {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
         let mut m = HashMap::<K, V>::new();
         for (key, value) in iter {
@@ -468,9 +523,12 @@ where
 
 impl<K, V> PartialEq for HashMap<K, V>
 where
-    K: HashKey,
+    K: Hashable + Eq,
     V: Eq,
 {
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn eq(&self, other: &Self) -> bool {
         if self.size != other.size {
             return false;
@@ -488,9 +546,11 @@ where
     }
 }
 
-impl<K: HashKey, V> Drop for HashMap<K, V> {
-    /// * Time complexity: O(n).
-    /// * Space complexity: O(n).
+impl<K, V> Drop for HashMap<K, V>
+where
+    K: Hashable + Eq,
+{
+    /// Equivalent to [Self::clear].
     fn drop(&mut self) {
         self.clear();
     }
