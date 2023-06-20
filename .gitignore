@@ -1,5 +1,5 @@
-/target/
-/tmp/
-/.idea/
-/.vscode/
+target
+tmp
+.idea
+.vscode
 Cargo.lock

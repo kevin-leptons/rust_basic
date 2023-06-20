@@ -1,0 +1,13 @@
+[package]
+name = "test"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+
+[dependencies]
+rust_basic = {path = "../rust_basic"}
+testkit = {path = "../testkit"}
+
+[profile.release]
+lto = true
+strip = true

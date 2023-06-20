@@ -7,18 +7,23 @@ RUST BASIC
     following aspects: grammar, safe code, unsafe code, memory management,
     and supported tools.
 
-    Data structures and algorithms are grouped and built into containers. For
-    examples: Stack, Queue, Vector, String, HashMap, HashSet, Tree,
+    Data structures and algorithms are grouped and built into containers. There
+    are basic types: Stack, Queue, Vector, String, HashMap, HashSet, Tree,
     PriorityQueue, RedBlackTree, DirectedGraph and more. All implementations are
     made from scratch without dependencies, except for: 1 - `std::ptr` and
     `std::alloc` to manage memory; 2 - `std::iter` to implement standard
     iterators; 3 - `std::cmp` to implement comparison operators.
 
+    Please use the package manager and package names properly, which depend on
+    the specific operating system. The following instructions are based on
+    GNU/Debian version 12.
+
 QUICKSTART
 ==========
 
-    # Install Rust compiler and tools.
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    # Install Rust compiler and tools. The Rust version is specify in
+    # `rust_basic/Cargo.toml`. curl --proto '=https' --tlsv1.2 -sSf
+    https://sh.rustup.rs | sh
 
     # Read the document for quick API references.
     cargo doc --open
@@ -31,9 +36,7 @@ MEMORY DIAGNOSTIC
 
     # Install `cargo-valgrind`.
     cargo install cargo-valgrind@2.1.0
-
-    # Make sure `valgrind` is available in the environment because
-    # `cargo-valgrind` depend on it.
+    apt install valgrind
 
     # Start checking.
     cargo valgrind test
