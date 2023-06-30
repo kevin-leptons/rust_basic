@@ -1,6 +1,5 @@
-use crate::{Queue, Stack, Vector};
-
 use super::Tree;
+use crate::{Queue, Stack, Vector};
 use std::slice;
 
 /// For iteration over immutable children in a tree.

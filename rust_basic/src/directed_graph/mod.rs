@@ -14,17 +14,12 @@ mod iter;
 mod path;
 mod vertex;
 
-use crate::hash_map::HashMap;
-use crate::priority_queue::PriorityQueue;
-use crate::vector::Vector;
-use crate::HashSet;
-use crate::Queue;
+use crate::{HashMap, HashSet, PriorityQueue, Queue, Vector};
 use cost::Cost;
 pub use edge::{Edge, RawEdge};
 pub use iter::{EdgeIter, TravelIter, VertexIter};
 pub use path::Path;
-pub use vertex::RawVertex;
-pub use vertex::Vertex;
+pub use vertex::{RawVertex, Vertex};
 
 /// `entry` A container for a directed graph.
 ///
@@ -118,8 +113,8 @@ impl DirectedGraph {
     /// Space complexity: O(|V|).
     pub fn new_vertex(&mut self, identity: u64, cost: u64) {
         assert!(!self.vertexes.has(&identity), "expect: not existed vertex");
-        let v = Vertex::new(identity, cost);
-        self.vertexes.set(identity, v);
+        let vertex = Vertex::new(identity, cost);
+        self.vertexes.set(identity, vertex);
     }
 
     /// Create new vertexes from an array.
@@ -157,7 +152,7 @@ impl DirectedGraph {
         assert!(!v_begin.edges.has(&end), "expect: not existed edge");
         v_begin.edges.set(end, Edge::new(begin, end, cost));
         let v_end = self.vertexes.get_mut(&end).unwrap();
-        v_end.connected_from.add(begin);
+        v_end.connections_from.add(begin);
     }
 
     /// Create new edges from an array.
@@ -245,35 +240,35 @@ impl DirectedGraph {
         let mut path = Vector::<u64>::new();
         let mut pool = self.find_independent_vetexes();
         let mut topological = HashMap::<u64, HashSet<u64>>::new();
-        for v in self.vertexes.values() {
-            let c = v.connected_from.clone();
-            topological.set(v.identity, c);
+        for vertex in self.vertexes.values() {
+            let connections = vertex.connections_from.clone();
+            topological.set(vertex.identity, connections);
         }
         loop {
             if pool.size() == 0 {
                 break;
             }
-            let v_id = pool.pop();
+            let vertex_id = pool.pop();
             let edges: Vector<Edge> = self
                 .vertexes
-                .get(&v_id)
+                .get(&vertex_id)
                 .unwrap()
                 .edges
                 .values()
                 .map(|e| e.clone())
                 .collect();
-            path.push_back(v_id);
+            path.push_back(vertex_id);
             for edge in edges.iter() {
                 let end = self.vertexes.get(&edge.to).unwrap();
-                let t = topological.get_mut(&end.identity).unwrap();
-                t.remove(&v_id);
-                if t.size() == 0 {
+                let topo = topological.get_mut(&end.identity).unwrap();
+                topo.remove(&vertex_id);
+                if topo.size() == 0 {
                     pool.push(end.identity);
                 }
             }
         }
-        for t in topological.values() {
-            if t.size() > 0 {
+        for topo in topological.values() {
+            if topo.size() > 0 {
                 return None;
             }
         }
@@ -282,9 +277,9 @@ impl DirectedGraph {
 
     fn find_independent_vetexes(&self) -> Queue<u64> {
         let mut result = Queue::new();
-        for v in self.vertexes.values() {
-            if v.connected_from.size() == 0 {
-                result.push(v.identity);
+        for vertex in self.vertexes.values() {
+            if vertex.connections_from.size() == 0 {
+                result.push(vertex.identity);
             }
         }
         return result;
@@ -296,17 +291,14 @@ impl DirectedGraph {
         to: u64,
         prevs: &HashMap<u64, Option<&Vertex>>,
     ) -> Option<Path> {
-        let mut v_path = Vector::<u64>::new();
+        let mut vertexes = Vector::<u64>::new();
         let target = self.vertexes.get(&to).unwrap();
         let mut cost = target.cost;
-        v_path.push_front(target.identity);
+        vertexes.push_front(target.identity);
         loop {
-            let current = &v_path[0];
+            let current = &vertexes[0];
             if *current == from {
-                return Some(Path {
-                    vertexes: v_path,
-                    cost: cost,
-                });
+                return Some(Path { vertexes, cost });
             }
             let prev = match prevs.get(&current).unwrap() {
                 None => return None,
@@ -314,7 +306,7 @@ impl DirectedGraph {
             };
             let link_cost = prev.edges.get(current).unwrap().cost;
             cost = cost + link_cost + prev.cost;
-            v_path.push_front(prev.identity);
+            vertexes.push_front(prev.identity);
         }
     }
 }

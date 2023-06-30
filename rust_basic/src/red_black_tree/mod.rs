@@ -12,14 +12,13 @@ mod helper;
 mod iter;
 mod node;
 
-use helper::Direction;
 pub use helper::RawPair;
-use iter::TravelNodePostIter;
+use helper::{Direction, RemoveNodeResult};
+use iter::TravelPostOrderIter;
 pub use iter::{Iter, KeyIter, ValueIter};
 use node::{Color, Node};
-use std::{cmp::Ordering, ptr};
-
-use self::helper::RemoveNodeResult;
+use std::cmp::Ordering;
+use std::ptr;
 
 /// `entry` A container for pairs key-value.
 ///
@@ -107,6 +106,7 @@ where
     ///
     /// Space complexity: O(n).
     pub fn set(&mut self, key: K, value: V) -> Option<V> {
+        assert!(self.size < usize::MAX, "expect: not full tree");
         unsafe {
             let node = Self::new_node(key, value);
             let old_value = self.set_node(node, self.root);
@@ -258,7 +258,7 @@ where
             return;
         }
         unsafe {
-            for node in TravelNodePostIter::new(self.root) {
+            for node in TravelPostOrderIter::new(self.root) {
                 drop(Box::from_raw(node));
             }
         }
@@ -754,18 +754,6 @@ where
     }
 }
 
-impl<K, V, const N: usize> From<[RawPair<K, V>; N]> for RedBlackTree<K, V>
-where
-    K: Ord,
-{
-    /// Time complexity: O(n.log(n)).
-    ///
-    /// Space complexity: O(1).
-    fn from(pairs: [RawPair<K, V>; N]) -> Self {
-        return Self::from_iter(pairs.into_iter());
-    }
-}
-
 impl<K, V> FromIterator<RawPair<K, V>> for RedBlackTree<K, V>
 where
     K: Ord,
@@ -779,6 +767,18 @@ where
             tree.set(key, value);
         }
         return tree;
+    }
+}
+
+impl<K, V, const N: usize> From<[RawPair<K, V>; N]> for RedBlackTree<K, V>
+where
+    K: Ord,
+{
+    /// Time complexity: O(n.log(n)).
+    ///
+    /// Space complexity: O(1).
+    fn from(pairs: [RawPair<K, V>; N]) -> Self {
+        return Self::from_iter(pairs.into_iter());
     }
 }
 

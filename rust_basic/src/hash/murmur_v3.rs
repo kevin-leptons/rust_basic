@@ -1,5 +1,6 @@
+use std::num::Wrapping;
+use std::ops::MulAssign;
 use std::ptr;
-use std::{num::Wrapping, ops::MulAssign};
 
 /// `entry` Compute a hash by MurmurHash version 3 32bits.
 ///

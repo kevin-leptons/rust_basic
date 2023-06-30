@@ -6,18 +6,18 @@
 //! following aspects: grammar, safe code, unsafe code, memory management, and
 //! supported tools.
 //!
-//! Data structures and algorithms are grouped and built into data types. For
-//! examples: Stack, Queue, Vector, HashTable, HashSet, PriorityQueue, Tree,
-//! andv DirectedGraphGraph. All implementations are made from scratch without
-//! dependencies, except for: 1 - `std::ptr` and `std::alloc` to manage memory;
-//! 2 - `std::rc` and `std::cell` to break borrow checker rules; 3 - `criterion`
-//! to benchmark since `#[bench]` is not available on stable version.
+//! Data structures and algorithms are grouped and built into containers. There
+//! are basic types: Stack, Queue, Vector, String, HashMap, HashSet, Tree,
+//! PriorityQueue, RedBlackTree, DirectedGraph and more. All implementations are
+//! made from scratch without dependencies, except for: 1 - `std::ptr` and
+//! `std::alloc` to manage memory; 2 - `std::iter` to implement standard
+//! iterators; 3 - `std::cmp` to implement comparison operators.
 //!
-//! There are Entry APIs and Non Entry APIs. Entry APIs are labeled `entry`.
-//! Non Entry APIs have no tag. Entry APIs expose the main functions of the
-//! module, so they are worth reading for the first time. Non Entry APIs on the
-//! other hand, may be distracting and should be skipped until they show up
-//! next to Entry APIs.
+//! There are Entry APIs and Non Entry APIs. Entry APIs are labeled `entry`. Non
+//! Entry APIs have no tag. Entry APIs expose the main functions of the module,
+//! so they are worth reading for the first time. Non Entry APIs on the other
+//! hand, may be distracting and should be skipped until they show up next to
+//! Entry APIs.
 
 pub mod binary_search_tree;
 pub mod directed_graph;

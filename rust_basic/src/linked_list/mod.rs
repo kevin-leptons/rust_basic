@@ -15,6 +15,7 @@ pub use iter::{Iter, IterMut};
 use node::{Cursor, Node};
 use std::cmp::Ordering;
 use std::ops::{Index, IndexMut};
+use std::ptr;
 
 /// `entry` A container for items, indexed by unsigned integers.
 ///
@@ -38,7 +39,7 @@ use std::ops::{Index, IndexMut};
 ///
 /// # Panic
 ///
-/// * Call [set](Self::set), [push_front](Self::push_front) or
+/// * Call [insert](Self::insert), [push_front](Self::push_front) or
 ///   [push_back](Self::push_back) to a list that already has size equal to
 ///   [usize::MAX].
 /// * Call [index](Self::index), [index_mut](Self::index_mut) or
@@ -58,8 +59,8 @@ use std::ops::{Index, IndexMut};
 /// assert_eq!(list[1], 2);
 #[derive(Debug)]
 pub struct LinkedList<T> {
-    head: Option<*mut Node<T>>,
-    tail: Option<*mut Node<T>>,
+    head: *mut Node<T>,
+    tail: *mut Node<T>,
     size: usize,
 }
 
@@ -71,8 +72,8 @@ impl<T> LinkedList<T> {
     /// Space complexity: O(1).
     pub fn new() -> Self {
         return Self {
-            head: None,
-            tail: None,
+            head: ptr::null_mut(),
+            tail: ptr::null_mut(),
             size: 0,
         };
     }
@@ -93,22 +94,21 @@ impl<T> LinkedList<T> {
     /// Space complexity: O(n).
     pub fn insert(&mut self, index: usize, item: T) {
         assert!(self.size < usize::MAX, "expected: not full list");
-        let cursor = self.lookup(index);
-        let new_box = Box::new(Node {
-            next: cursor.current,
-            prev: cursor.prev,
-            item,
-        });
-        let node = Box::leak(new_box);
-        match cursor.prev {
-            None => self.head = Some(node),
-            Some(prev) => unsafe { (*prev).next = Some(node) },
-        };
-        match cursor.current {
-            None => self.tail = Some(node),
-            Some(current) => unsafe { (*current).prev = Some(node) },
+        unsafe {
+            let cursor = self.lookup(index);
+            let mut node = Self::new_node(item);
+            (*node).next = cursor.current;
+            (*node).prev = cursor.prev;
+            match cursor.prev.is_null() {
+                true => self.head = node,
+                false => (*cursor.prev).next = node,
+            };
+            match cursor.current.is_null() {
+                true => self.tail = node,
+                false => (*cursor.current).prev = node,
+            }
+            self.size += 1;
         }
-        self.size += 1;
     }
 
     /// Borrow immutable item at index `0`.
@@ -177,16 +177,16 @@ impl<T> LinkedList<T> {
     /// Space complexity: O(n).
     pub fn remove(&mut self, index: usize) -> T {
         assert!(index < self.size, "expect: valid index");
-        let cursor = self.lookup(index);
-        let current = cursor.current.unwrap();
         unsafe {
-            match cursor.prev {
-                None => self.head = (*current).next,
-                Some(prev) => (*prev).next = (*current).next,
+            let cursor = self.lookup(index);
+            let current = cursor.current;
+            match cursor.prev.is_null() {
+                true => self.head = (*current).next,
+                false => (*cursor.prev).next = (*current).next,
             };
-            match (*current).next {
-                None => self.tail = (*current).prev,
-                Some(next) => (*next).prev = cursor.prev,
+            match (*current).next.is_null() {
+                true => self.tail = (*current).prev,
+                false => (*(*current).next).prev = cursor.prev,
             };
             self.size -= 1;
             return Box::from_raw(current).item;
@@ -218,50 +218,52 @@ impl<T> LinkedList<T> {
     /// Space complexity: O(n).
     pub fn clear(&mut self) {
         let mut current = self.head;
-        loop {
-            match current {
-                None => break,
-                Some(node) => {
-                    let next = unsafe { (*node).next };
-                    unsafe { drop(Box::from_raw(node)) };
-                    current = next;
-                }
-            };
+        unsafe {
+            while !current.is_null() {
+                let next = (*current).next;
+                drop(Box::from_raw(current));
+                current = next;
+            }
         }
-        self.head = None;
-        self.tail = None;
+        self.head = ptr::null_mut();
+        self.tail = ptr::null_mut();
         self.size = 0;
     }
 
-    fn lookup(&self, index: usize) -> Cursor<T> {
+    fn new_node(item: T) -> *mut Node<T> {
+        let node = Node {
+            next: ptr::null_mut(),
+            prev: ptr::null_mut(),
+            item,
+        };
+        return Box::leak(Box::new(node));
+    }
+
+    unsafe fn lookup(&self, index: usize) -> Cursor<T> {
         assert!(index <= self.size, "expect: valid index");
         if (index + 1) == self.size {
-            match self.tail {
-                None => {
-                    return Cursor {
-                        current: None,
-                        prev: None,
-                    }
-                }
-                Some(tail) => unsafe {
-                    return Cursor {
-                        current: self.tail,
-                        prev: (*tail).prev,
-                    };
+            return match self.tail.is_null() {
+                true => Cursor {
+                    current: ptr::null_mut(),
+                    prev: ptr::null_mut(),
+                },
+                false => Cursor {
+                    current: self.tail,
+                    prev: (*self.tail).prev,
                 },
             };
         }
         if index == self.size {
             return Cursor {
-                current: None,
+                current: ptr::null_mut(),
                 prev: self.tail,
             };
         }
-        let mut prev = None;
+        let mut prev = ptr::null_mut();
         let mut current = self.head;
         for _ in 0..index {
             prev = current;
-            current = unsafe { (*current.unwrap()).next };
+            current = (*current).next;
         }
         return Cursor { prev, current };
     }
@@ -298,10 +300,15 @@ where
 impl<T> Index<usize> for LinkedList<T> {
     type Output = T;
 
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
     fn index(&self, index: usize) -> &Self::Output {
         assert!(index < self.size, "expect: valid index");
-        let cursor = self.lookup(index);
-        return unsafe { &(*cursor.current.unwrap()).item };
+        unsafe {
+            let cursor = self.lookup(index);
+            return &(*cursor.current).item;
+        }
     }
 }
 
@@ -311,8 +318,10 @@ impl<T> IndexMut<usize> for LinkedList<T> {
     /// Space complexity: O(n).
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         assert!(index < self.size, "expect: valid index");
-        let cursor = self.lookup(index);
-        return unsafe { &mut (*cursor.current.unwrap()).item };
+        unsafe {
+            let cursor = self.lookup(index);
+            return &mut (*cursor.current).item;
+        }
     }
 }
 
@@ -324,25 +333,23 @@ where
     ///
     /// Space complexity: O(n).
     fn cmp(&self, other: &Self) -> Ordering {
-        let mut nw_self = self.head.clone();
-        let mut nw_other = other.head.clone();
+        let mut self_node = self.head;
+        let mut other_node = other.head;
         unsafe {
             loop {
-                if nw_self.is_none() || nw_other.is_none() {
-                    break;
+                if self_node.is_null() || other_node.is_null() {
+                    return self.size.cmp(&other.size);
                 }
-                let n_self = nw_self.unwrap();
-                let n_other = nw_other.unwrap();
-                if (*n_self).item > (*n_other).item {
-                    return Ordering::Greater;
-                } else if (*n_self).item < (*n_other).item {
-                    return Ordering::Less;
+                match (*self_node).item.cmp(&(*other_node).item) {
+                    Ordering::Equal => {
+                        self_node = (*self_node).next;
+                        other_node = (*other_node).next;
+                    }
+                    Ordering::Less => return Ordering::Less,
+                    Ordering::Greater => return Ordering::Greater,
                 }
-                nw_self = (*n_self).next;
-                nw_other = (*n_other).next;
             }
         }
-        return self.size.cmp(&other.size);
     }
 }
 

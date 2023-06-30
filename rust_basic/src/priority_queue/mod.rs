@@ -184,22 +184,6 @@ where
     }
 }
 
-impl<T, const N: usize> From<[T; N]> for PriorityQueue<T>
-where
-    T: Ord,
-{
-    /// Time complexity: O(n.log(n)).
-    ///
-    /// Space complexity: O(n).
-    fn from(value: [T; N]) -> Self {
-        let mut q = PriorityQueue::<T>::new();
-        for i in value {
-            q.push(i);
-        }
-        return q;
-    }
-}
-
 impl<T> FromIterator<T> for PriorityQueue<T>
 where
     T: Ord,
@@ -208,11 +192,23 @@ where
     ///
     /// Space complexity: O(n).
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut q = PriorityQueue::<T>::new();
-        for i in iter {
-            q.push(i);
+        let mut queue = PriorityQueue::<T>::new();
+        for item in iter {
+            queue.push(item);
         }
-        return q;
+        return queue;
+    }
+}
+
+impl<T, const N: usize> From<[T; N]> for PriorityQueue<T>
+where
+    T: Ord,
+{
+    /// Time complexity: O(n.log(n)).
+    ///
+    /// Space complexity: O(n).
+    fn from(items: [T; N]) -> Self {
+        return Self::from_iter(items);
     }
 }
 

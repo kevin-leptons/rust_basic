@@ -1,6 +1,5 @@
+use super::{Edge, EdgeIter};
 use crate::{HashMap, HashSet};
-
-use super::{edge::Edge, iter::EdgeIter};
 
 /// A vertex in a graph.
 #[derive(Debug, PartialEq, Eq)]
@@ -8,7 +7,7 @@ pub struct Vertex {
     pub(super) identity: u64,
     pub(super) cost: u64,
     pub(super) edges: HashMap<u64, Edge>,
-    pub(super) connected_from: HashSet<u64>,
+    pub(super) connections_from: HashSet<u64>,
 }
 
 /// Input data for creating a vertex.
@@ -31,7 +30,7 @@ impl Vertex {
             identity,
             cost,
             edges: HashMap::new(),
-            connected_from: HashSet::new(),
+            connections_from: HashSet::new(),
         };
     }
 

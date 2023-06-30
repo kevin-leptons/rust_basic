@@ -245,14 +245,14 @@ impl<'a, T: 'a> Vector<T> {
             return;
         }
         for i in 0..(self.size - 1) {
-            let mut s = i;
+            let mut select = i;
             for k in (i + 1)..self.size {
-                if self[k] < self[s] {
-                    s = k;
+                if self[k] < self[select] {
+                    select = k;
                 }
             }
-            if s != i {
-                self.swap(i, s);
+            if select != i {
+                self.swap(i, select);
             }
         }
     }

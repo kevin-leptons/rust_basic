@@ -8,10 +8,10 @@
 //! more about how to explore APIs and access to [Entry APIs
 //! List](crate#structs).
 
+mod hashable;
 mod murmur_v2;
 mod murmur_v3;
-mod hashable;
 
+pub use hashable::Hashable;
 pub use murmur_v2::murmur_v2_64;
 pub use murmur_v3::murmur_v3_32;
-pub use hashable::Hashable;

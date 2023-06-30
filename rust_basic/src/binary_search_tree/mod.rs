@@ -11,11 +11,10 @@
 mod iter;
 mod node;
 
-pub use iter::Iter;
-use iter::TravelNodePostIter;
+use iter::TravelPostOrderIter;
+pub use iter::{Iter, KeyIter, ValueIter};
 use node::Node;
-
-pub use self::iter::{KeyIter, ValueIter};
+use std::{cmp::Ordering, ptr};
 
 /// `entry` A container for pairs key-value.
 ///
@@ -65,7 +64,7 @@ pub struct BinarySearchTree<K, V>
 where
     K: Ord,
 {
-    root: Option<*mut Node<K, V>>,
+    root: *mut Node<K, V>,
     size: usize,
 }
 
@@ -80,7 +79,7 @@ where
     /// Space complexity: O(1).
     pub fn new() -> Self {
         return Self {
-            root: None,
+            root: ptr::null_mut(),
             size: 0,
         };
     }
@@ -101,42 +100,11 @@ where
     ///
     /// Space complexity: O(n).
     pub fn set(&mut self, key: K, value: V) -> Option<V> {
-        assert!(self.size < usize::MAX, "unexpected: size is overflow");
-        let new = Self::new_node(key, value);
-        let mut current = match self.root {
-            None => {
-                self.root = Some(new);
-                self.size = 1;
-                return None;
-            }
-            Some(v) => v,
-        };
+        assert!(self.size < usize::MAX, "expect: not full tree");
         unsafe {
-            loop {
-                if (*current).key > (*new).key {
-                    if (*current).left.is_some() {
-                        current = (*current).left.unwrap();
-                    } else {
-                        (*current).left = Some(new);
-                        (*new).parent = Some(current);
-                        break;
-                    }
-                } else if (*current).key < (*new).key {
-                    if (*current).right.is_some() {
-                        current = (*current).right.unwrap();
-                    } else {
-                        (*current).right = Some(new);
-                        (*new).parent = Some(current);
-                        break;
-                    }
-                } else {
-                    self.replace(new, current);
-                    return Some(Box::from_raw(current).value);
-                }
-            }
+            let node = Self::new_node(key, value);
+            return self.set_node(node);
         }
-        self.size += 1;
-        return None;
     }
 
     /// Borrow an immutable value.
@@ -173,7 +141,9 @@ where
     ///
     /// Space complexity: O(n).
     pub fn has(&self, key: &K) -> bool {
-        return self.lookup(key).is_some();
+        unsafe {
+            return self.lookup(key).is_some();
+        }
     }
 
     /// For iteration over pairs. It does not guarantee that items will arrive
@@ -212,15 +182,15 @@ where
     ///
     /// Space complexity: O(n).
     pub fn min(&self) -> &K {
-        let mut current = match self.root {
-            None => panic!("expect: not empty tree"),
-            Some(v) => v,
+        let mut current = match self.root.is_null() {
+            true => panic!("expect: not empty tree"),
+            false => self.root,
         };
         unsafe {
             loop {
-                match (*current).left {
-                    None => return &(*current).key,
-                    Some(v) => current = v,
+                match (*current).left.is_null() {
+                    true => return &(*current).key,
+                    false => current = (*current).left,
                 };
             }
         }
@@ -232,15 +202,15 @@ where
     ///
     /// Space complexity: O(n).
     pub fn max(&self) -> &K {
-        let mut current = match self.root {
-            None => panic!("expect: not empty tree"),
-            Some(v) => v,
+        let mut current = match self.root.is_null() {
+            true => panic!("expect: not empty tree"),
+            false => self.root,
         };
         unsafe {
             loop {
-                match (*current).right {
-                    None => return &(*current).key,
-                    Some(v) => current = v,
+                match (*current).right.is_null() {
+                    true => return &(*current).key,
+                    false => current = (*current).right,
                 };
             }
         }
@@ -252,22 +222,22 @@ where
     ///
     /// Space complexity: O(n).
     pub fn remove(&mut self, key: &K) -> Option<V> {
-        let matched = match self.lookup(key) {
-            None => return None,
-            Some(v) => v,
-        };
         unsafe {
-            if (*matched).left.is_none() {
-                self.transplant(&(*matched).right, matched);
-            } else if (*matched).right.is_none() {
-                self.transplant(&(*matched).left, matched);
+            let node = match self.lookup(key) {
+                None => return None,
+                Some(v) => v,
+            };
+            if (*node).left.is_null() {
+                self.transplant((*node).right, node);
+            } else if (*node).right.is_null() {
+                self.transplant((*node).left, node);
             } else {
-                let min_right = Self::min_node_right((*matched).right.unwrap());
-                self.transplant(&(*min_right).right, min_right);
-                self.relocate(min_right, matched);
+                let min_right = Self::min_node_right((*node).right);
+                self.transplant((*min_right).right, min_right);
+                self.relocate(min_right, node);
             }
             self.size -= 1;
-            return Some(Box::from_raw(matched).value);
+            return Some(Box::from_raw(node).value);
         }
     }
 
@@ -278,58 +248,82 @@ where
     /// Space complexity: O(n).
     pub fn clear(&mut self) {
         unsafe {
-            for node in TravelNodePostIter::new(self.root) {
+            for node in TravelPostOrderIter::new(self.root) {
                 drop(Box::from_raw(node));
             }
         }
-        self.root = None;
+        self.root = ptr::null_mut();
         self.size = 0;
     }
 
-    fn lookup(&self, key: &K) -> Option<*mut Node<K, V>> {
-        let mut current_w = self.root;
-        unsafe {
-            loop {
-                let current = match current_w {
-                    None => return None,
-                    Some(v) => v,
-                };
-                if (*current).key == *key {
-                    return Some(current);
-                } else if (*current).key < *key {
-                    current_w = (*current).right;
-                } else {
-                    current_w = (*current).left;
+    unsafe fn set_node(&mut self, node: *mut Node<K, V>) -> Option<V> {
+        if self.root.is_null() {
+            self.root = node;
+            self.size = 1;
+            return None;
+        }
+        let mut current = self.root;
+        loop {
+            match (*node).key.cmp(&(*current).key) {
+                Ordering::Equal => {
+                    self.replace(node, current);
+                    return Some(Box::from_raw(current).value);
                 }
+                Ordering::Less => match (*current).left.is_null() {
+                    true => {
+                        (*current).left = node;
+                        (*node).parent = current;
+                        self.size += 1;
+                        return None;
+                    }
+                    false => current = (*current).left,
+                },
+                Ordering::Greater => match (*current).right.is_null() {
+                    true => {
+                        (*current).right = node;
+                        (*node).parent = current;
+                        self.size += 1;
+                        return None;
+                    }
+                    false => current = (*current).right,
+                },
             }
         }
+    }
+
+    unsafe fn lookup(&self, key: &K) -> Option<*mut Node<K, V>> {
+        let mut current = self.root;
+        while !current.is_null() {
+            match key.cmp(&(*current).key) {
+                Ordering::Equal => return Some(current),
+                Ordering::Less => current = (*current).left,
+                Ordering::Greater => current = (*current).right,
+            };
+        }
+        return None;
     }
 
     unsafe fn transplant(
         &mut self,
-        source: &Option<*mut Node<K, V>>,
+        source: *mut Node<K, V>,
         target: *mut Node<K, V>,
     ) {
-        let parent_w = match (*target).parent {
-            None => {
-                self.root = source.clone();
-                None
-            }
-            Some(parent) => {
-                if (*parent).left == Some(target) {
-                    (*parent).left = source.clone();
-                } else if (*parent).right == Some(target) {
-                    (*parent).right = source.clone();
+        match (*target).parent.is_null() {
+            true => self.root = source,
+            false => {
+                let parent = (*target).parent;
+                if (*parent).left == target {
+                    (*parent).left = source;
+                } else if (*parent).right == target {
+                    (*parent).right = source;
                 } else {
                     panic!("expect: parent points to target")
                 }
-                Some(parent)
             }
         };
-        match *source {
-            Some(v) => (*v).parent = parent_w,
-            None => {}
-        }
+        if !source.is_null() {
+            (*source).parent = (*target).parent;
+        };
     }
 
     unsafe fn relocate(
@@ -337,42 +331,37 @@ where
         source: *mut Node<K, V>,
         target: *mut Node<K, V>,
     ) {
-        let parent_w = match (*target).parent {
-            None => {
-                self.root = Some(source.clone());
-                None
-            }
-            Some(parent) => {
-                if (*parent).left == Some(target) {
-                    (*parent).left = Some(source.clone());
-                } else if (*parent).right == Some(target) {
-                    (*parent).right = Some(source.clone());
+        match (*target).parent.is_null() {
+            true => self.root = source,
+            false => {
+                let parent = (*target).parent;
+                if (*parent).left == target {
+                    (*parent).left = source;
+                } else if (*parent).right == target {
+                    (*parent).right = source;
                 } else {
                     panic!("expect: parent points to target");
                 }
-                Some(parent)
             }
         };
-        (*source).parent = parent_w;
+        (*source).parent = (*target).parent;
         (*source).left = (*target).left;
-        if (*source).left.is_some() {
-            (*(*source).left.unwrap()).parent = Some(source);
+        if !(*source).left.is_null() {
+            (*(*source).left).parent = source;
         }
         (*source).right = (*target).right;
-        if (*source).right.is_some() {
-            (*(*source).right.unwrap()).parent = Some(source);
+        if !(*source).right.is_null() {
+            (*(*source).right).parent = source;
         }
     }
 
-    fn min_node_right(from: *mut Node<K, V>) -> *mut Node<K, V> {
+    unsafe fn min_node_right(from: *mut Node<K, V>) -> *mut Node<K, V> {
         let mut current = from;
-        unsafe {
-            loop {
-                match (*current).left {
-                    None => return current,
-                    Some(v) => current = v,
-                };
-            }
+        loop {
+            match (*current).left.is_null() {
+                true => return current,
+                false => current = (*current).left,
+            };
         }
     }
 
@@ -381,13 +370,14 @@ where
         source: *mut Node<K, V>,
         target: *mut Node<K, V>,
     ) {
-        match (*target).parent {
-            None => self.root = Some(source),
-            Some(parent) => {
-                if (*parent).left == Some(target) {
-                    (*parent).left = Some(source);
-                } else if (*parent).right == Some(target) {
-                    (*parent).right = Some(source);
+        match (*target).parent.is_null() {
+            true => self.root = source,
+            false => {
+                let parent = (*target).parent;
+                if (*parent).left == target {
+                    (*parent).left = source;
+                } else if (*parent).right == target {
+                    (*parent).right = source;
                 } else {
                     panic!("expect: parent points to target")
                 }
@@ -395,26 +385,23 @@ where
         }
         (*source).left = (*target).left;
         (*source).right = (*target).right;
-        match (*target).left {
-            None => {}
-            Some(v) => (*v).parent = Some(source),
-        };
-        match (*target).right {
-            None => {}
-            Some(v) => (*v).parent = Some(source),
+        if !(*target).left.is_null() {
+            (*(*target).left).parent = source;
+        }
+        if !(*target).right.is_null() {
+            (*(*target).right).parent = source;
         }
     }
 
     fn new_node(key: K, value: V) -> *mut Node<K, V> {
-        let new_node = Node {
+        let node = Node {
             key,
             value,
-            parent: None,
-            left: None,
-            right: None,
+            parent: ptr::null_mut(),
+            left: ptr::null_mut(),
+            right: ptr::null_mut(),
         };
-        let new_box = Box::new(new_node);
-        return Box::leak(new_box);
+        return Box::leak(Box::new(node));
     }
 }
 
@@ -438,11 +425,11 @@ where
     ///
     /// Space complexity: O(n).
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
-        let mut t = BinarySearchTree::<K, V>::new();
-        for (k, v) in iter {
-            t.set(k, v);
+        let mut tree = BinarySearchTree::<K, V>::new();
+        for (key, value) in iter {
+            tree.set(key, value);
         }
-        return t;
+        return tree;
     }
 }
 
@@ -468,8 +455,8 @@ where
         for (key, value) in self.iter() {
             match other.get(key) {
                 None => return false,
-                Some(v) => {
-                    if v != value {
+                Some(other_value) => {
+                    if other_value != value {
                         return false;
                     }
                 }

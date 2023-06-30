@@ -1,6 +1,6 @@
-use crate::{hash_map::ValueIter, DirectedGraph, HashMap, HashSet, Queue};
-
 use super::{edge::Edge, Vertex};
+use crate::hash_map::ValueIter;
+use crate::{DirectedGraph, HashMap, HashSet, Queue};
 
 /// For iteration over vertexes.
 pub struct VertexIter<'a> {

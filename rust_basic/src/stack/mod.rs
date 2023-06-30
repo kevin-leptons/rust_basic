@@ -281,11 +281,7 @@ where
     ///
     /// Space complexity: O(n).
     fn clone(&self) -> Self {
-        let mut stack = Stack::<T>::new();
-        for item in self.iter() {
-            stack.push(item.clone());
-        }
-        return stack;
+        return Self::from_iter(self.iter().map(|item| item.clone()));
     }
 }
 

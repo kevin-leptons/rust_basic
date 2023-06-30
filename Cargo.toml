@@ -1,7 +1,7 @@
 [workspace]
 
-members = [
-	"rust_basic",
-	"testkit",
-	"test"
-]
+members = ["rust_basic", "testkit", "test"]
+
+[profile.release]
+lto = true
+strip = true

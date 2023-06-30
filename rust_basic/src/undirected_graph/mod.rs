@@ -12,13 +12,11 @@ mod edge;
 mod iter;
 mod vertex;
 
-use crate::hash_map::HashMap;
-use crate::vector::Vector;
+use self::iter::TravelMutIter;
+use crate::{HashMap, Vector};
 pub use edge::{Edge, RawEdge};
 pub use iter::{EdgeIter, TravelIter, VertexIter};
 pub use vertex::Vertex;
-
-use self::iter::TravelMutIter;
 
 /// `entry` A container for the undirected graph.
 ///

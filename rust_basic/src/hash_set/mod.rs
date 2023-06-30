@@ -10,8 +10,8 @@
 
 mod iter;
 
-use crate::hash::Hashable;
-use crate::hash_map::HashMap;
+use crate::HashMap;
+use crate::Hashable;
 pub use iter::Iter;
 
 /// `entry` A container for unique items.

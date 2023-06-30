@@ -1,6 +1,5 @@
-use std::cmp::Ordering;
-
 use super::Vertex;
+use std::cmp::Ordering;
 
 pub(super) struct Cost<'a> {
     pub(super) vertex: &'a Vertex,

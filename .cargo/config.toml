@@ -1,2 +1,2 @@
 [target.'cfg(all())']
-# rustflags = ["-D", "warnings", "-A", "dead_code"]
+rustflags = ["-D", "warnings"]

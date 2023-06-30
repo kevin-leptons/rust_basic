@@ -10,8 +10,7 @@
 
 mod cell;
 
-use crate::grid::Grid;
-use crate::Vector;
+use crate::{Grid, Vector};
 use cell::Cell;
 use std::fmt::Display;
 use std::ops::Index;
@@ -404,13 +403,13 @@ impl From<[[u8; Self::GRID_SIZE]; Self::GRID_SIZE]> for Sudoku {
     ///
     /// Space complexity: O(n).
     fn from(grid: [[u8; Self::GRID_SIZE]; Self::GRID_SIZE]) -> Self {
-        let mut s = Sudoku::new();
+        let mut sudoku = Sudoku::new();
         for x in 0..Self::GRID_SIZE {
             for y in 0..Self::GRID_SIZE {
-                s.set(x, y, grid[y][x]);
+                sudoku.set(x, y, grid[y][x]);
             }
         }
-        return s;
+        return sudoku;
     }
 }
 

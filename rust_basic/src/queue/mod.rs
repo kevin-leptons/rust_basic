@@ -10,13 +10,11 @@
 
 mod iter;
 
-use ::std::ptr::{self};
 pub use iter::Iter;
-use std::alloc::handle_alloc_error;
-use std::alloc::{self, Layout};
+use std::alloc::{self, handle_alloc_error, Layout};
 use std::mem;
 use std::ops::Index;
-use std::ptr::NonNull;
+use std::ptr::{self, NonNull};
 
 /// `entry` A container for first in - first out items.
 ///
@@ -274,22 +272,6 @@ impl<T> Queue<T> {
     }
 }
 
-impl<T, const N: usize> From<[T; N]> for Queue<T> {
-    /// Create a new instance from an array. The first item of the array become
-    /// the top item in the container.
-    ///
-    /// Time complexity: O(n).
-    ///
-    /// Space complexity: O(n).
-    fn from(array: [T; N]) -> Self {
-        let mut queue = Queue::<T>::new();
-        for item in array {
-            queue.push(item);
-        }
-        return queue;
-    }
-}
-
 impl<T> FromIterator<T> for Queue<T> {
     /// Create a new instance from an array. The first item of the iterator
     /// become the top item in the container.
@@ -298,11 +280,23 @@ impl<T> FromIterator<T> for Queue<T> {
     ///
     /// Space complexity: O(n).
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut q = Queue::<T>::new();
-        for i in iter {
-            q.push(i);
+        let mut queue = Queue::<T>::new();
+        for item in iter {
+            queue.push(item);
         }
-        return q;
+        return queue;
+    }
+}
+
+impl<T, const N: usize> From<[T; N]> for Queue<T> {
+    /// Create a new instance from an array. The first item of the array become
+    /// the top item in the container.
+    ///
+    /// Time complexity: O(n).
+    ///
+    /// Space complexity: O(n).
+    fn from(items: [T; N]) -> Self {
+        return Self::from_iter(items);
     }
 }
 
@@ -330,11 +324,7 @@ where
     ///
     /// Space complexity: O(n).
     fn clone(&self) -> Self {
-        let mut q = Queue::<T>::new();
-        for i in self.iter() {
-            q.push(i.clone());
-        }
-        return q;
+        return Self::from_iter(self.iter().map(|item| item.clone()));
     }
 }
 

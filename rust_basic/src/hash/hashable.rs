@@ -28,11 +28,11 @@ use crate::hash::murmur_v2_64;
 ///     }
 /// }
 ///
-/// let h0 = Digit::new(1).hash();
-/// let h1 = Digit::new(1).hash();
-/// let h2 = Digit::new(2).hash();
-/// assert_eq!(h0, h1);
-/// assert_ne!(h0, h2);
+/// let hash0 = Digit::new(1).hash();
+/// let hash1 = Digit::new(1).hash();
+/// let hash2 = Digit::new(2).hash();
+/// assert_eq!(hash0, hash1);
+/// assert_ne!(hash0, hash2);
 pub trait Hashable {
     /// The requirement is: If `k1 == k2` then `hash(k1) == hash(k2)`. The
     /// result should be distributed as much as possible.

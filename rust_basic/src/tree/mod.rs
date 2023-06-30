@@ -10,10 +10,9 @@
 
 mod iter;
 
-use std::ptr::addr_of;
-
 use crate::vector::Vector;
 pub use iter::{ChildIter, TravelLevelIter, TravelPostIter, TravelPreIter};
+use std::ptr::addr_of;
 
 /// `entry` A container for a tree.
 ///
@@ -83,8 +82,8 @@ impl<T> Tree<T> {
     /// * Time complexity: O(1) or O(n).
     /// * Space complexity: O(1).
     pub fn add_children<const N: usize>(&mut self, children: [Tree<T>; N]) {
-        for c in children {
-            self.children.push_back(c);
+        for child in children {
+            self.children.push_back(child);
         }
     }
 

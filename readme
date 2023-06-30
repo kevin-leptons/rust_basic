@@ -22,8 +22,8 @@ QUICKSTART
 ==========
 
     # Install Rust compiler and tools. The Rust version is specify in
-    # `rust_basic/Cargo.toml`. curl --proto '=https' --tlsv1.2 -sSf
-    https://sh.rustup.rs | sh
+    # `rust_basic/Cargo.toml`. 
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
     # Read the document for quick API references.
     cargo doc --open

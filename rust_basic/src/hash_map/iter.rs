@@ -43,8 +43,7 @@ pub struct KeyIter<'a, K, V>
 where
     K: Hashable + Eq,
 {
-    map: &'a HashMap<K, V>,
-    index: usize,
+    iter: Iter<'a, K, V>,
 }
 
 impl<'a, K, V> KeyIter<'a, K, V>
@@ -52,7 +51,9 @@ where
     K: Hashable + Eq,
 {
     pub(super) fn new(map: &'a HashMap<K, V>) -> Self {
-        return Self { map: map, index: 0 };
+        return Self {
+            iter: Iter::new(map),
+        };
     }
 }
 
@@ -63,16 +64,10 @@ where
     type Item = &'a K;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if self.index >= self.map.capacity {
-                return None;
-            }
-            let slot = unsafe { &*self.map.slots.add(self.index) };
-            self.index += 1;
-            if slot.state == State::Filled {
-                return Some(&slot.key);
-            }
-        }
+        return match self.iter.next() {
+            None => None,
+            Some((key, _)) => Some(key),
+        };
     }
 }
 
@@ -81,8 +76,7 @@ pub struct ValueIter<'a, K, V>
 where
     K: Hashable + Eq,
 {
-    map: &'a HashMap<K, V>,
-    index: usize,
+    iter: Iter<'a, K, V>,
 }
 
 impl<'a, K, V> ValueIter<'a, K, V>
@@ -90,7 +84,9 @@ where
     K: Hashable + Eq,
 {
     pub(super) fn new(map: &'a HashMap<K, V>) -> Self {
-        return Self { map, index: 0 };
+        return Self {
+            iter: Iter::new(map),
+        };
     }
 }
 
@@ -101,16 +97,10 @@ where
     type Item = &'a V;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if self.index >= self.map.capacity {
-                return None;
-            }
-            let slot = unsafe { &*self.map.slots.add(self.index) };
-            self.index += 1;
-            if slot.state == State::Filled {
-                return Some(&slot.value);
-            }
-        }
+        return match self.iter.next() {
+            None => None,
+            Some((_, value)) => Some(value),
+        };
     }
 }
 
