@@ -96,7 +96,7 @@ impl<T> LinkedList<T> {
         assert!(self.size < usize::MAX, "expected: not full list");
         unsafe {
             let cursor = self.lookup(index);
-            let mut node = Self::new_node(item);
+            let node = Self::new_node(item);
             (*node).next = cursor.current;
             (*node).prev = cursor.prev;
             match cursor.prev.is_null() {

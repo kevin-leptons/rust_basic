@@ -168,7 +168,6 @@ impl Sudoku {
         let cell = &mut self.grid[(x, y)];
         let candidates = cell.candidates.clone();
         cell.locked = true;
-        drop(cell);
         for candiate in candidates.iter() {
             self.grid[(x, y)].value = *candiate;
             if self.validate_cell(x, y) && self.solve_backtrack() {

@@ -2,4 +2,4 @@
 name = "rust_basic"
 version = "1.0.0"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.71.0"
